@@ -21,7 +21,7 @@ func main() {
 
 	var message raven.Message = raven.Message("Hello Raven !!")
 	var destination raven.Destination = raven.Destination{
-		Name: "A",
+		Name: "Asia",
 	}
 
 	//Pick a Raven from farm
