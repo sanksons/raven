@@ -4,12 +4,15 @@ package raven
 // Raven defines a message delivery object
 //
 type Raven struct {
-	message     Message
+	// A message that raven carries.
+	message Message
+	// Message Destination
 	destination Destination
-	helper      FarmManager
+	//
+	farm *Farm
 }
 
-func (this *Raven) SetMessage(m Message) *Raven {
+func (this *Raven) HandMessage(m Message) *Raven {
 	this.message = m
 	return this
 }

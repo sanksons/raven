@@ -1,5 +1,5 @@
 package raven
 
-type FarmManager interface {
+type RavenManager interface {
 	Send(string) error
 }
