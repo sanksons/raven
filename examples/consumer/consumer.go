@@ -25,7 +25,7 @@ func main() {
 	}
 
 	collector := farm.MessageCollector(destination)
-	collector.SetTempQ()
+	collector.SetTempQ("{Asia}-one")
 
 	// this will block
 	collector.Start(c)

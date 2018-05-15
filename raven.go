@@ -24,12 +24,12 @@ func (this *Raven) SetDestination(d Destination) *Raven {
 
 func (this *Raven) Fly() error {
 	//validate
-	if this.message == "" {
+	if this.message.IsEmpty() {
 		return ErrNoMessage
 	}
 	if !this.destination.IsValid() {
 		return ErrInvalidDestination
 	}
-	return this.farm.Manager.Send(string(this.message), this.destination.Name)
+	return this.farm.Manager.Send(this.message, this.destination)
 	//return nil
 }

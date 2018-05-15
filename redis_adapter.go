@@ -1,6 +1,7 @@
 package raven
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -36,25 +37,34 @@ type RedisCluster struct {
 //
 //  Implementation of Send() method exposed by raven manager.
 //
-func (this *RedisCluster) Send(message string, dest string) error {
-	ret := this.client.LPush(dest, message)
+func (this *RedisCluster) Send(message Message, dest Destination) error {
+
+	ret := this.client.LPush(dest.String(), message.String())
 	if ret.Err() != nil {
 		return ret.Err()
 	}
 	return nil
 }
 
-func (this *RedisCluster) Receive(source string, tempQ string) (string, error) {
+func (this *RedisCluster) Receive(source Source, procQ Q) (*Message, error) {
 
-	if tempQ == "" {
-		return this.receive(source)
+	var message string
+	var err error
+	if procQ.IsEmpty() {
+		message, err = this.receive(source)
 	} else {
-		return this.receiveReliable(source, tempQ)
+		message, err = this.receiveReliable(source, procQ)
 	}
+	var m Message
+	err = json.Unmarshal([]byte(message), &m)
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
 }
 
-func (this *RedisCluster) receive(source string) (string, error) {
-	ret := this.client.BRPop(BLOCK_FOR_DURATION, source)
+func (this *RedisCluster) receive(source Source) (string, error) {
+	ret := this.client.BRPop(BLOCK_FOR_DURATION, source.String())
 	err := ret.Err()
 	if err != nil && err == redis.Nil {
 		//we got an error
@@ -64,13 +74,14 @@ func (this *RedisCluster) receive(source string) (string, error) {
 		return "", err
 	}
 	sliceRes := ret.Val()
-	fmt.Printf("%v\n", sliceRes)
-
-	return "", nil
+	if len(sliceRes) == 2 { //check if its what we expected.
+		return sliceRes[1], nil
+	}
+	return "", fmt.Errorf("An unexpected error occured while fetching message from Q: %s", source)
 }
 
-func (this *RedisCluster) receiveReliable(source, tempQ string) (string, error) {
-	ret := this.client.BRPopLPush(source, tempQ, BLOCK_FOR_DURATION)
+func (this *RedisCluster) receiveReliable(source Source, procQ Q) (string, error) {
+	ret := this.client.BRPopLPush(source.String(), procQ.String(), BLOCK_FOR_DURATION)
 	err := ret.Err()
 	if err != nil && err == redis.Nil {
 		//we got an error
@@ -80,7 +91,31 @@ func (this *RedisCluster) receiveReliable(source, tempQ string) (string, error) 
 		return "", err
 	}
 	sliceRes := ret.Val()
-	fmt.Printf("%v\n", sliceRes)
+	return sliceRes, nil
+}
 
-	return "", nil
+func (this *RedisCluster) MarkProcessed(m *Message, procQ Q) error {
+
+	if procQ.IsEmpty() {
+		return nil
+	}
+	ret := this.client.LPop(procQ.String())
+	err := ret.Err()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (this *RedisCluster) MarkFailed(m *Message, deadQ Q) error {
+
+	if deadQ.IsEmpty() || m == nil {
+		return nil
+	}
+	ret := this.client.LPush(deadQ.String(), *m)
+	err := ret.Err()
+	if err != nil {
+		return err
+	}
+	return nil
 }
