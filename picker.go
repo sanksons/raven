@@ -1,16 +1,21 @@
 package raven
 
-type Picker struct {
+import (
+	"fmt"
+)
+
+type MessageCollector struct {
 	destination Destination
+	farm        *Farm
 }
 
-func (this *Picker) SetDestination(d Destination) *Picker {
+func (this *MessageCollector) SetDestination(d Destination) *MessageCollector {
 	this.destination = d
 	return this
 }
 
-func StartPicking(f func()) error {
+func (this *MessageCollector) Start(f func(string) error) error {
 
 	//validate before start picking
-	return nil
+	return fmt.Errorf("To be Impl")
 }

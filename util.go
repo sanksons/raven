@@ -44,6 +44,9 @@ func (this *Farm) GetRaven() *Raven {
 // This function returns a picker which can be used to pick messages sent via raven.
 // aka  Consumer Code
 //
-func GetPicker() *Picker {
-	return new(Picker)
+func (this *Farm) MessageCollector(d Destination) *MessageCollector {
+	collector := new(MessageCollector)
+	collector.SetDestination(d)
+	collector.farm = this
+	return collector
 }

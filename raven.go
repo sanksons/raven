@@ -30,6 +30,6 @@ func (this *Raven) Fly() error {
 	if !this.destination.IsValid() {
 		return ErrInvalidDestination
 	}
-	return this.farm.Manager.Send(string(this.message))
+	return this.farm.Manager.Send(string(this.message), this.destination.Name)
 	//return nil
 }
