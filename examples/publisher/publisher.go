@@ -12,7 +12,7 @@ func main() {
 	// Initialize raven farm.
 	//
 	farm, err := raven.InitializeFarm(raven.FARM_TYPE_REDISCLUSTER, raven.RedisClusterConfig{
-		Addrs:    []string{"localhost:30001"},
+		Addrs:    []string{"172.17.0.2:30001"},
 		PoolSize: 10,
 	})
 	if err != nil {

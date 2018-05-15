@@ -1,11 +1,12 @@
 package raven
 
 import (
-	"fmt"
-
 	"github.com/go-redis/redis"
 )
 
+//
+// Configuration to Initialize redis cluster.
+//
 type RedisClusterConfig struct {
 	Addrs    []string
 	Password string
@@ -31,5 +32,9 @@ type RedisCluster struct {
 //  Implementation of Send() method exposed by raven manager.
 //
 func (this *RedisCluster) Send(message string, dest string) error {
-	return fmt.Errorf("To be Impl")
+	ret := this.client.LPush(dest, message)
+	if ret.Err() != nil {
+		return ret.Err()
+	}
+	return nil
 }
