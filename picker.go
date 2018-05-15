@@ -14,8 +14,24 @@ func (this *MessageCollector) SetDestination(d Destination) *MessageCollector {
 	return this
 }
 
-func (this *MessageCollector) Start(f func(string) error) error {
+func (this *MessageCollector) Start(f func(string)) error {
 
-	//validate before start picking
-	return fmt.Errorf("To be Impl")
+	for {
+		//this blocks
+		msg, err := this.farm.Manager.Receive(this.destination.Name)
+		if err != nil && err == ErrEmptyQueue {
+			//Q is empty, Simple recheck.
+			fmt.Println("Queue is empty recheck")
+			continue
+		}
+		if err != nil {
+			//add a wait here.
+			//log error
+			fmt.Println(err.Error())
+			return err
+		}
+
+		f(msg) //process message
+
+	}
 }

@@ -1,6 +1,9 @@
 package raven
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/go-redis/redis"
 )
 
@@ -37,4 +40,20 @@ func (this *RedisCluster) Send(message string, dest string) error {
 		return ret.Err()
 	}
 	return nil
+}
+
+func (this *RedisCluster) Receive(dest string) (string, error) {
+	ret := this.client.BRPop(10*time.Second, dest)
+	err := ret.Err()
+	if err != nil && err == redis.Nil {
+		//we got an error
+		return "", ErrEmptyQueue
+	}
+	if err != nil {
+		return "", err
+	}
+	sliceRes := ret.Val()
+	fmt.Printf("%v\n", sliceRes)
+
+	return "", nil
 }
