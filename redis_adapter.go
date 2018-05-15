@@ -7,6 +7,8 @@ import (
 	"github.com/go-redis/redis"
 )
 
+const BLOCK_FOR_DURATION = 10 * time.Second
+
 //
 // Configuration to Initialize redis cluster.
 //
@@ -42,8 +44,33 @@ func (this *RedisCluster) Send(message string, dest string) error {
 	return nil
 }
 
-func (this *RedisCluster) Receive(dest string) (string, error) {
-	ret := this.client.BRPop(10*time.Second, dest)
+func (this *RedisCluster) Receive(source string, tempQ string) (string, error) {
+
+	if tempQ == "" {
+		return this.receive(source)
+	} else {
+		return this.receiveReliable(source, tempQ)
+	}
+}
+
+func (this *RedisCluster) receive(source string) (string, error) {
+	ret := this.client.BRPop(BLOCK_FOR_DURATION, source)
+	err := ret.Err()
+	if err != nil && err == redis.Nil {
+		//we got an error
+		return "", ErrEmptyQueue
+	}
+	if err != nil {
+		return "", err
+	}
+	sliceRes := ret.Val()
+	fmt.Printf("%v\n", sliceRes)
+
+	return "", nil
+}
+
+func (this *RedisCluster) receiveReliable(source, tempQ string) (string, error) {
+	ret := this.client.BRPopLPush(source, tempQ, BLOCK_FOR_DURATION)
 	err := ret.Err()
 	if err != nil && err == redis.Nil {
 		//we got an error

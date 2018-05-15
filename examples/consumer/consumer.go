@@ -25,6 +25,7 @@ func main() {
 	}
 
 	collector := farm.MessageCollector(destination)
+	collector.SetTempQ()
 
 	// this will block
 	collector.Start(c)
