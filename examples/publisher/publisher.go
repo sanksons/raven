@@ -19,7 +19,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var message raven.Message = raven.Message{Data: "Hello Raven !!"}
+	var message raven.Message = raven.PrepareMessage("", "", "Hello !!")
 	var destination raven.Destination = raven.Destination{
 		raven.Q{Name: "Asia"},
 	}

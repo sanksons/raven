@@ -4,19 +4,39 @@ import (
 	"strings"
 )
 
+func CreateQ(name string, bucket string) Q {
+	return Q{name: name, bucket: bucket}
+}
+
 type Q struct {
-	Name string
+	name   string
+	bucket string
 }
 
 func (this Q) String() string {
-	return strings.ToLower(this.Name)
+	return strings.ToLower(this.name)
 }
 
 func (this Q) IsEmpty() bool {
-	if this.Name == "" {
+	if this.name == "" {
 		return true
 	}
 	return false
+}
+
+func (this *Q) GetName() string {
+	return strings.ToLower(this.name)
+}
+
+func (this *Q) GetBucket() string {
+	return strings.ToLower(this.bucket)
+}
+
+func CreateSource(name string, bucket string) Source {
+
+	return Source{
+		Q{name: name, bucket: bucket},
+	}
 }
 
 //
@@ -24,6 +44,13 @@ func (this Q) IsEmpty() bool {
 //
 type Source struct {
 	Q
+}
+
+func CreateDestination(name string, bucket string) Destination {
+
+	return Destination{
+		Q{name: name, bucket: bucket},
+	}
 }
 
 //

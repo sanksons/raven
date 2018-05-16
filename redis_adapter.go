@@ -12,6 +12,8 @@ const BLOCK_FOR_DURATION = 10 * time.Second
 
 const MAX_TRY_LIMIT = 3
 
+const MAX_SEQUENCE = 100000
+
 //
 // Configuration to Initialize redis cluster.
 //
@@ -34,6 +36,20 @@ func InitializeRedisCluster(config RedisClusterConfig) *RedisCluster {
 
 type RedisCluster struct {
 	client *redis.ClusterClient
+}
+
+//
+// get Sequence to be alloted to Message.
+// @todo: implement circular sequencing.
+//
+func (this *RedisCluster) GetMsgSeq(mtype string, destination Destination) (int, error) {
+	key := destination.GetName() + "_counter_" + mtype
+	ret := this.client.Incr(key)
+
+	if ret.Err() != nil {
+		return 0, ret.Err()
+	}
+	return int(ret.Val()), nil
 }
 
 //

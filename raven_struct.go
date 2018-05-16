@@ -1,5 +1,9 @@
 package raven
 
+import (
+	"time"
+)
+
 //
 // History tells us ravens are the reliable and quickest way for sending messages.
 // Raven defines a message delivery object.
@@ -44,6 +48,7 @@ func (this *Raven) Fly() error {
 	if !this.destination.IsEmpty() {
 		return ErrInvalidDestination
 	}
+	this.message.Time = time.Now()
 	return this.farm.Manager.Send(this.message, this.destination)
 	//return nil
 }
