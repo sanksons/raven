@@ -14,5 +14,5 @@ type RavenManager interface {
 	MarkProcessed(message *Message, q Q) error
 
 	// Mark the supplied message as processed.
-	MarkFailed(message *Message, deadQ Q) error
+	MarkFailed(message *Message, deadQ Q, processingQ Q) error
 }

@@ -10,6 +10,8 @@ import (
 
 const BLOCK_FOR_DURATION = 10 * time.Second
 
+const MAX_TRY_LIMIT = 3
+
 //
 // Configuration to Initialize redis cluster.
 //
@@ -99,23 +101,53 @@ func (this *RedisCluster) MarkProcessed(m *Message, procQ Q) error {
 	if procQ.IsEmpty() {
 		return nil
 	}
-	ret := this.client.LPop(procQ.String())
-	err := ret.Err()
-	if err != nil {
-		return err
-	}
-	return nil
+	return FailSafeExec(func() error {
+		ret := this.client.RPop(procQ.String())
+		err := ret.Err()
+		if err != nil && err != redis.Nil {
+			return err
+		}
+		return nil
+	}, MAX_TRY_LIMIT)
 }
 
-func (this *RedisCluster) MarkFailed(m *Message, deadQ Q) error {
+func (this *RedisCluster) MarkFailed(m *Message, deadQ Q, processingQ Q) error {
 
-	if deadQ.IsEmpty() || m == nil {
+	if m == nil || (deadQ.IsEmpty() && processingQ.IsEmpty()) {
+		return nil //nothing to do
+	}
+
+	// Simply remove from processing Q
+	if deadQ.IsEmpty() {
+		return FailSafeExec(func() error {
+			ret := this.client.RPop(processingQ.String())
+			err := ret.Err()
+			if err != nil && err != redis.Nil {
+				return err
+			}
+			return nil
+		}, MAX_TRY_LIMIT)
+	}
+
+	// Simply put in deadQ
+	if processingQ.IsEmpty() {
+		return FailSafeExec(func() error {
+			ret := this.client.LPush(deadQ.String(), m.String())
+			err := ret.Err()
+			if err != nil && err != redis.Nil {
+				return err
+			}
+			return nil
+		}, MAX_TRY_LIMIT)
+	}
+
+	// else remove from processingQ and put in deadQ
+	return FailSafeExec(func() error {
+		ret := this.client.RPopLPush(processingQ.String(), deadQ.String())
+		err := ret.Err()
+		if err != nil && err != redis.Nil {
+			return err
+		}
 		return nil
-	}
-	ret := this.client.LPush(deadQ.String(), *m)
-	err := ret.Err()
-	if err != nil {
-		return err
-	}
-	return nil
+	}, MAX_TRY_LIMIT)
 }

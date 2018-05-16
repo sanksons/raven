@@ -49,7 +49,7 @@ func (this *MessageCollector) Start(f func(string) error) error {
 		} else {
 			//store in DeadQ
 			//@todo: do I need to check for error here.??
-			this.farm.Manager.MarkFailed(msg, this.deadQ)
+			this.farm.Manager.MarkFailed(msg, this.deadQ, this.processingQ)
 		}
 
 	}
