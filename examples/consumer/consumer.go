@@ -20,20 +20,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var destination raven.Destination = raven.Destination{
-		Name: "Asia",
+	var source raven.Source = raven.CreateSource("product", "product")
+
+	receiver, err := farm.GetRavenReceiver("one", source)
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	collector := farm.MessageCollector(destination)
-	collector.SetTempQ("{Asia}-one")
-
-	// this will block
-	collector.Start(c)
-
+	receiver.Start(c)
 }
 
-func c(message string) {
+func c(message string) error {
 
 	fmt.Printf("Got message: %s\n", message)
-	return
+	return nil
 }

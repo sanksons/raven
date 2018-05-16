@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/sanksons/raven"
 )
@@ -20,21 +22,24 @@ func main() {
 	}
 
 	var message raven.Message = raven.PrepareMessage("", "", "Hello !!")
-	var destination raven.Destination = raven.Destination{
-		raven.Q{Name: "Asia"},
-	}
+	var destination raven.Destination = raven.CreateDestination("product", "product")
 
-	//Pick a Raven from farm
-	flyerr := farm.GetRaven().
-		// Hand over message to it.
-		HandMessage(message).
-		// Define Destination.
-		SetDestination(destination).
-		// make it fly.
-		Fly()
+	for {
+		fmt.Println("Publishing message")
 
-	if flyerr != nil {
-		log.Fatal(flyerr)
+		//Pick a Raven from farm
+		flyerr := farm.GetRaven().
+			// Hand over message to it.
+			HandMessage(message).
+			// Define Destination.
+			SetDestination(destination).
+			// make it fly.
+			Fly()
+
+		if flyerr != nil {
+			log.Fatal(flyerr)
+		}
+		time.Sleep(2 * time.Second)
 	}
 
 }

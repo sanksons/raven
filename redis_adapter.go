@@ -57,7 +57,7 @@ func (this *RedisCluster) GetMsgSeq(mtype string, destination Destination) (int,
 //
 func (this *RedisCluster) Send(message Message, dest Destination) error {
 
-	ret := this.client.LPush(dest.String(), message.toJson())
+	ret := this.client.LPush(dest.GetName(), message.toJson())
 	if ret.Err() != nil {
 		return ret.Err()
 	}
@@ -73,6 +73,9 @@ func (this *RedisCluster) Receive(source Source, procQ Q) (*Message, error) {
 	} else {
 		message, err = this.receiveReliable(source, procQ)
 	}
+	if err != nil {
+		return nil, err
+	}
 	var m Message
 	err = json.Unmarshal([]byte(message), &m)
 	if err != nil {
@@ -82,7 +85,7 @@ func (this *RedisCluster) Receive(source Source, procQ Q) (*Message, error) {
 }
 
 func (this *RedisCluster) receive(source Source) (string, error) {
-	ret := this.client.BRPop(BLOCK_FOR_DURATION, source.String())
+	ret := this.client.BRPop(BLOCK_FOR_DURATION, source.GetName())
 	err := ret.Err()
 	if err != nil && err == redis.Nil {
 		//we got an error
@@ -99,7 +102,7 @@ func (this *RedisCluster) receive(source Source) (string, error) {
 }
 
 func (this *RedisCluster) receiveReliable(source Source, procQ Q) (string, error) {
-	ret := this.client.BRPopLPush(source.String(), procQ.String(), BLOCK_FOR_DURATION)
+	ret := this.client.BRPopLPush(source.GetName(), procQ.GetName(), BLOCK_FOR_DURATION)
 	err := ret.Err()
 	if err != nil && err == redis.Nil {
 		//we got an error
@@ -118,7 +121,7 @@ func (this *RedisCluster) MarkProcessed(m *Message, procQ Q) error {
 		return nil
 	}
 	return failSafeExec(func() error {
-		ret := this.client.RPop(procQ.String())
+		ret := this.client.RPop(procQ.GetName())
 		err := ret.Err()
 		if err != nil && err != redis.Nil {
 			return err
@@ -136,7 +139,7 @@ func (this *RedisCluster) MarkFailed(m *Message, deadQ Q, processingQ Q) error {
 	// Simply remove from processing Q
 	if deadQ.IsEmpty() {
 		return failSafeExec(func() error {
-			ret := this.client.RPop(processingQ.String())
+			ret := this.client.RPop(processingQ.GetName())
 			err := ret.Err()
 			if err != nil && err != redis.Nil {
 				return err
@@ -148,7 +151,7 @@ func (this *RedisCluster) MarkFailed(m *Message, deadQ Q, processingQ Q) error {
 	// Simply put in deadQ
 	if processingQ.IsEmpty() {
 		return failSafeExec(func() error {
-			ret := this.client.LPush(deadQ.String(), m.String())
+			ret := this.client.LPush(deadQ.GetName(), m.String())
 			err := ret.Err()
 			if err != nil && err != redis.Nil {
 				return err
@@ -159,7 +162,7 @@ func (this *RedisCluster) MarkFailed(m *Message, deadQ Q, processingQ Q) error {
 
 	// else remove from processingQ and put in deadQ
 	return failSafeExec(func() error {
-		ret := this.client.RPopLPush(processingQ.String(), deadQ.String())
+		ret := this.client.RPopLPush(processingQ.GetName(), deadQ.GetName())
 		err := ret.Err()
 		if err != nil && err != redis.Nil {
 			return err

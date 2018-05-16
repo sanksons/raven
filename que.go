@@ -1,6 +1,7 @@
 package raven
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -13,11 +14,7 @@ type Q struct {
 	bucket string
 }
 
-func (this Q) String() string {
-	return strings.ToLower(this.name)
-}
-
-func (this Q) IsEmpty() bool {
+func (this *Q) IsEmpty() bool {
 	if this.name == "" {
 		return true
 	}
@@ -25,7 +22,7 @@ func (this Q) IsEmpty() bool {
 }
 
 func (this *Q) GetName() string {
-	return strings.ToLower(this.name)
+	return strings.ToLower(this.name) + "-{" + strings.ToLower(this.bucket) + "}"
 }
 
 func (this *Q) GetBucket() string {
@@ -47,9 +44,11 @@ type Source struct {
 
 func CreateDestination(name string, bucket string) Destination {
 
-	return Destination{
+	d := Destination{
 		createQ(name, bucket),
 	}
+	fmt.Printf("Destination:%v \n", d)
+	return d
 }
 
 //

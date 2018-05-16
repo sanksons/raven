@@ -45,7 +45,7 @@ func (this *Raven) Fly() error {
 		return ErrNoMessage
 	}
 	// We dont want our raven to wander around world!!
-	if !this.destination.IsEmpty() {
+	if this.destination.IsEmpty() {
 		return ErrInvalidDestination
 	}
 	this.message.mtime = time.Now()
