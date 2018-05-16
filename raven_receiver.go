@@ -48,14 +48,14 @@ func (this *RavenReceiver) setId(id string) error {
 func (this *RavenReceiver) defineProcessingQ() *RavenReceiver {
 
 	qname := fmt.Sprintf("%s_processing_%s", this.source.GetName(), this.id)
-	this.processingQ = CreateQ(qname, this.source.GetBucket())
+	this.processingQ = createQ(qname, this.source.GetBucket())
 	return this
 }
 
 func (this *RavenReceiver) defineDeadQ() *RavenReceiver {
 
 	qname := fmt.Sprintf("%s_dead", this.source.GetName())
-	this.deadQ = CreateQ(qname, this.source.GetBucket())
+	this.deadQ = createQ(qname, this.source.GetBucket())
 	return this
 }
 
@@ -72,7 +72,7 @@ func (this *RavenReceiver) Start(f func(string) error) error {
 	// this blocks
 	for {
 		//this blocks
-		msg, err := this.farm.Manager.Receive(this.source, this.processingQ)
+		msg, err := this.farm.manager.Receive(this.source, this.processingQ)
 		if err != nil && err == ErrEmptyQueue {
 			//Q is empty, Simple recheck.
 			fmt.Println("Queue is empty recheck")
@@ -89,11 +89,11 @@ func (this *RavenReceiver) Start(f func(string) error) error {
 		if execerr == nil {
 			//free up message from processing Q
 			//@todo: do I need to check for error here.??
-			this.farm.Manager.MarkProcessed(msg, this.processingQ)
+			this.farm.manager.MarkProcessed(msg, this.processingQ)
 		} else {
 			//store in DeadQ
 			//@todo: do I need to check for error here.??
-			this.farm.Manager.MarkFailed(msg, this.deadQ, this.processingQ)
+			this.farm.manager.MarkFailed(msg, this.deadQ, this.processingQ)
 		}
 
 	}

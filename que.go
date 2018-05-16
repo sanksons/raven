@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-func CreateQ(name string, bucket string) Q {
+func createQ(name string, bucket string) Q {
 	return Q{name: name, bucket: bucket}
 }
 
@@ -33,9 +33,8 @@ func (this *Q) GetBucket() string {
 }
 
 func CreateSource(name string, bucket string) Source {
-
 	return Source{
-		Q{name: name, bucket: bucket},
+		createQ(name, bucket),
 	}
 }
 
@@ -49,7 +48,7 @@ type Source struct {
 func CreateDestination(name string, bucket string) Destination {
 
 	return Destination{
-		Q{name: name, bucket: bucket},
+		createQ(name, bucket),
 	}
 }
 

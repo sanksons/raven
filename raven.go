@@ -15,7 +15,7 @@ func InitializeFarm(mtype string, config interface{}) (*Farm, error) {
 	case FARM_TYPE_REDISCLUSTER:
 		conf := config.(RedisClusterConfig)
 		redis := InitializeRedisCluster(conf)
-		f.Manager = redis
+		f.manager = redis
 		return f, nil
 
 	default:

@@ -6,7 +6,7 @@ package raven
 // each raven.
 //
 type Farm struct {
-	Manager RavenManager
+	manager RavenManager
 }
 
 //

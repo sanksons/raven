@@ -8,11 +8,11 @@ import (
 	"github.com/go-redis/redis"
 )
 
+//Time to wait incase Q is empty.
 const BLOCK_FOR_DURATION = 10 * time.Second
 
+//No. of times to try incase of failure.
 const MAX_TRY_LIMIT = 3
-
-const MAX_SEQUENCE = 100000
 
 //
 // Configuration to Initialize redis cluster.
@@ -57,7 +57,7 @@ func (this *RedisCluster) GetMsgSeq(mtype string, destination Destination) (int,
 //
 func (this *RedisCluster) Send(message Message, dest Destination) error {
 
-	ret := this.client.LPush(dest.String(), message.String())
+	ret := this.client.LPush(dest.String(), message.toJson())
 	if ret.Err() != nil {
 		return ret.Err()
 	}
@@ -117,7 +117,7 @@ func (this *RedisCluster) MarkProcessed(m *Message, procQ Q) error {
 	if procQ.IsEmpty() {
 		return nil
 	}
-	return FailSafeExec(func() error {
+	return failSafeExec(func() error {
 		ret := this.client.RPop(procQ.String())
 		err := ret.Err()
 		if err != nil && err != redis.Nil {
@@ -135,7 +135,7 @@ func (this *RedisCluster) MarkFailed(m *Message, deadQ Q, processingQ Q) error {
 
 	// Simply remove from processing Q
 	if deadQ.IsEmpty() {
-		return FailSafeExec(func() error {
+		return failSafeExec(func() error {
 			ret := this.client.RPop(processingQ.String())
 			err := ret.Err()
 			if err != nil && err != redis.Nil {
@@ -147,7 +147,7 @@ func (this *RedisCluster) MarkFailed(m *Message, deadQ Q, processingQ Q) error {
 
 	// Simply put in deadQ
 	if processingQ.IsEmpty() {
-		return FailSafeExec(func() error {
+		return failSafeExec(func() error {
 			ret := this.client.LPush(deadQ.String(), m.String())
 			err := ret.Err()
 			if err != nil && err != redis.Nil {
@@ -158,7 +158,7 @@ func (this *RedisCluster) MarkFailed(m *Message, deadQ Q, processingQ Q) error {
 	}
 
 	// else remove from processingQ and put in deadQ
-	return FailSafeExec(func() error {
+	return failSafeExec(func() error {
 		ret := this.client.RPopLPush(processingQ.String(), deadQ.String())
 		err := ret.Err()
 		if err != nil && err != redis.Nil {

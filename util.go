@@ -7,7 +7,7 @@ package raven
 //
 //  Execute a func with retry on error.
 //
-func FailSafeExec(f func() error, maxtry int) error {
+func failSafeExec(f func() error, maxtry int) error {
 	if maxtry == 0 {
 		maxtry = 1
 	}
@@ -21,7 +21,6 @@ func FailSafeExec(f func() error, maxtry int) error {
 			break
 		}
 		current += current
-
 	}
 	if current == maxtry && !success {
 		//its a failure.
