@@ -19,9 +19,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var message raven.Message = raven.Message("Hello Raven !!")
+	var message raven.Message = raven.Message{Data: "Hello Raven !!"}
 	var destination raven.Destination = raven.Destination{
-		Name: "Asia",
+		raven.Q{Name: "Asia"},
 	}
 
 	//Pick a Raven from farm
