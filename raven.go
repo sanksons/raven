@@ -1,35 +1,24 @@
 package raven
 
+import "fmt"
+
+const FARM_TYPE_REDISCLUSTER = "redis-cluster"
+
 //
-// Raven defines a message delivery object
+// Entry point to this library.
+// mtype: Farm magaer type.
+// config: Farm manager config.
 //
-type Raven struct {
-	// A message that raven carries.
-	message Message
-	// Message Destination
-	destination Destination
-	//
-	farm *Farm
-}
+func InitializeFarm(mtype string, config interface{}) (*Farm, error) {
+	f := new(Farm)
+	switch mtype {
+	case FARM_TYPE_REDISCLUSTER:
+		conf := config.(RedisClusterConfig)
+		redis := InitializeRedisCluster(conf)
+		f.Manager = redis
+		return f, nil
 
-func (this *Raven) HandMessage(m Message) *Raven {
-	this.message = m
-	return this
-}
-
-func (this *Raven) SetDestination(d Destination) *Raven {
-	this.destination = d
-	return this
-}
-
-func (this *Raven) Fly() error {
-	//validate
-	if this.message.IsEmpty() {
-		return ErrNoMessage
+	default:
+		return nil, fmt.Errorf("Not a Valid Raven Manager supplied")
 	}
-	if !this.destination.IsValid() {
-		return ErrInvalidDestination
-	}
-	return this.farm.Manager.Send(this.message, this.destination)
-	//return nil
 }

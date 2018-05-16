@@ -19,30 +19,16 @@ func (this Q) IsEmpty() bool {
 	return false
 }
 
+//
+// Specifies the Queue Name from which messages needs to be retrieved.
+//
 type Source struct {
 	Q
 }
 
 //
 // Destination specifies the Queue name to which the message needs to be sent.
-// If the Destination is marked as reliable, an additional queue is maintained to
-// store messages that have failed processing.
 //
 type Destination struct {
 	Q
-}
-
-func (this *Destination) IsValid() bool {
-	destinations := GetValidDestinations()
-	for _, di := range destinations {
-		if di == this.Name {
-			return true
-		}
-	}
-	return false
-}
-
-//@todo: this needs to be picked from config.
-func GetValidDestinations() []string {
-	return []string{"London", "Asia"}
 }

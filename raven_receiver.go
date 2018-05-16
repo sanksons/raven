@@ -7,24 +7,24 @@ import (
 //
 // User to collect Messages
 //
-type MessageCollector struct {
+type RavenReceiver struct {
 	source      Source
 	processingQ Q
 	deadQ       Q
 	farm        *Farm
 }
 
-func (this *MessageCollector) SetSource(s Source) *MessageCollector {
+func (this *RavenReceiver) SetSource(s Source) *RavenReceiver {
 	this.source = s
 	return this
 }
 
-func (this *MessageCollector) SetProcessingQ(q Q) *MessageCollector {
+func (this *RavenReceiver) SetProcessingQ(q Q) *RavenReceiver {
 	this.processingQ = q
 	return this
 }
 
-func (this *MessageCollector) Start(f func(string) error) error {
+func (this *RavenReceiver) Start(f func(string) error) error {
 
 	for {
 		//this blocks

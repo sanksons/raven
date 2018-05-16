@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+//
+// The message that is sent and retrieved.
+// @todo: need to check if we can avoid json encoding and decoding.
+//
 type Message struct {
 	Id      string
 	Data    string
