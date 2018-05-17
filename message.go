@@ -2,16 +2,18 @@ package raven
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
 const KEY_TYPE_PUB_SEQ = "publisher-seq"
 
 func PrepareMessage(id string, mtype string, data string) Message {
+
 	return Message{
-		id:    id,
-		data:  data,
-		mtype: mtype,
+		Id:   id,
+		Data: data,
+		Type: mtype,
 	}
 }
 
@@ -21,11 +23,12 @@ func PrepareMessage(id string, mtype string, data string) Message {
 // @todo: check if we need counter or time is enough.
 //
 type Message struct {
-	id    string
-	mtype string
-	data  string
+	Id   string
+	Type string
+	Data string
 
 	//Need to check if we need a counter here or time is sufficient.??
+	//Done we definitely need a counter, else multiserver will fail.
 	//Counter int
 	mtime time.Time
 }
@@ -36,12 +39,15 @@ func (this Message) String() string {
 }
 
 func (this Message) toJson() string {
-	str, _ := json.Marshal(this)
+	str, err := json.Marshal(this)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 	return string(str)
 }
 
 func (this *Message) isEmpty() bool {
-	if this.data == "" {
+	if this.Data == "" {
 		return true
 	}
 	return false
