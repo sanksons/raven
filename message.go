@@ -38,12 +38,17 @@ func (this Message) String() string {
 	return string(str)
 }
 
-func (this Message) toJson() string {
+func (this *Message) toJson() string {
 	str, err := json.Marshal(this)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 	return string(str)
+}
+
+func (this *Message) fromJson(data string) error {
+	err := json.Unmarshal([]byte(data), this)
+	return err
 }
 
 func (this *Message) isEmpty() bool {

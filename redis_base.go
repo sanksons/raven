@@ -1,7 +1,6 @@
 package raven
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -39,6 +38,7 @@ type redisbase struct {
 //
 func (this *redisbase) Send(message Message, dest Destination) error {
 
+	fmt.Printf("Publishing to Q [%s]\n\n", dest.GetName())
 	ret := this.Client.LPush(dest.GetName(), message.toJson())
 	if ret.Err() != nil {
 		return ret.Err()
@@ -51,19 +51,19 @@ func (this *redisbase) Receive(source Source, procQ Q) (*Message, error) {
 	var message string
 	var err error
 	if procQ.IsEmpty() {
+		fmt.Printf("Receiving from Q [%s] Non Reliable.\n", source.GetName())
 		message, err = this.receive(source)
 	} else {
+		fmt.Printf("Receiving from Q [%s] Reliable.\n", source.GetName())
 		message, err = this.receiveReliable(source, procQ)
 	}
 	if err != nil {
 		return nil, err
 	}
-	var m Message
-	err = json.Unmarshal([]byte(message), &m)
-	if err != nil {
-		return nil, err
-	}
-	return &m, nil
+	var m *Message = new(Message)
+	err = m.fromJson(message)
+	fmt.Printf("Message is: %+v\n", m)
+	return m, nil
 }
 
 func (this *redisbase) receive(source Source) (string, error) {
@@ -77,6 +77,7 @@ func (this *redisbase) receive(source Source) (string, error) {
 		return "", err
 	}
 	sliceRes := ret.Val()
+	fmt.Printf("%v\n", sliceRes)
 	if len(sliceRes) == 2 { //check if its what we expected.
 		return sliceRes[1], nil
 	}
@@ -102,6 +103,7 @@ func (this *redisbase) MarkProcessed(m *Message, procQ Q) error {
 	if procQ.IsEmpty() {
 		return nil
 	}
+	fmt.Printf("Marking message [%d] processed.\n", m.Id)
 	return failSafeExec(func() error {
 		ret := this.Client.RPop(procQ.GetName())
 		err := ret.Err()
@@ -118,8 +120,10 @@ func (this *redisbase) MarkFailed(m *Message, deadQ Q, processingQ Q) error {
 		return nil //nothing to do
 	}
 
+	fmt.Printf("DeadQ is [%s], ProcessingQ is [%s]\n", deadQ.GetName(), processingQ.GetName())
 	// Simply remove from processing Q
 	if deadQ.IsEmpty() {
+		fmt.Printf("Marking message dead [%d] . Simply remove from processing Q.\n", m.Id)
 		return failSafeExec(func() error {
 			ret := this.Client.RPop(processingQ.GetName())
 			err := ret.Err()
@@ -132,6 +136,7 @@ func (this *redisbase) MarkFailed(m *Message, deadQ Q, processingQ Q) error {
 
 	// Simply put in deadQ
 	if processingQ.IsEmpty() {
+		fmt.Printf("Marking message dead [%s] . Simply put in dead Q.\n", m.Id)
 		return failSafeExec(func() error {
 			ret := this.Client.LPush(deadQ.GetName(), m.String())
 			err := ret.Err()
@@ -143,6 +148,7 @@ func (this *redisbase) MarkFailed(m *Message, deadQ Q, processingQ Q) error {
 	}
 
 	// else remove from processingQ and put in deadQ
+	fmt.Printf("Marking message dead [%s] . Fully functional.\n", m.Id)
 	return failSafeExec(func() error {
 		ret := this.Client.RPopLPush(processingQ.GetName(), deadQ.GetName())
 		err := ret.Err()

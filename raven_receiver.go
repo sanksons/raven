@@ -109,6 +109,7 @@ func (this *RavenReceiver) Start(f func(string) error) error {
 			continue
 		}
 
+		fmt.Printf("Got msg: %+v\n", msg)
 		execerr := f(msg.String()) //process message
 		if execerr == nil {
 			//free up message from processing Q

@@ -20,13 +20,19 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Define a source from which to receive.
 	var source raven.Source = raven.CreateSource("product", "product")
 
+	// Initiate and pick a receiver.
 	receiver, err := farm.GetRavenReceiver("one", source)
 	if err != nil {
 		log.Fatal(err)
 	}
-	receiver.MarkReliable().MarkOrdered()
+
+	// Mark as Reliable and ordered.
+	//receiver.MarkReliable().MarkOrdered()
+
+	//start receiving
 	receiver.Start(c)
 }
 
