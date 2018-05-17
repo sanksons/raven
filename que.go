@@ -10,7 +10,10 @@ func createQ(name string, bucket string) Q {
 }
 
 type Q struct {
-	name   string
+	//Name of the Queue
+	name string
+
+	//Bucket to which queue belongs.
 	bucket string
 }
 

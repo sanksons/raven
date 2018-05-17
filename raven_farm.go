@@ -30,7 +30,7 @@ func (this *Farm) GetRaven() *Raven {
 //
 func (this *Farm) GetRavenReceiver(id string, s Source) (*RavenReceiver, error) {
 
-	receiver, err := newRavenReceiver(id, s, true, true)
+	receiver, err := newRavenReceiver(id, s)
 	if err != nil {
 		return nil, err
 	}

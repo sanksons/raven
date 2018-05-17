@@ -4,19 +4,10 @@ import (
 	"fmt"
 )
 
-func newRavenReceiver(id string, source Source, reliable bool, ordering bool) (*RavenReceiver, error) {
+func newRavenReceiver(id string, source Source) (*RavenReceiver, error) {
 	rr := new(RavenReceiver)
-	err := rr.setId(id)
-	if err != nil {
-		return nil, err
-	}
-	rr.setSource(source)
-	if reliable {
-		rr.defineDeadQ().defineProcessingQ()
-	}
-	if ordering {
-		rr.ordering = true
-	}
+
+	rr.setSource(source).setId(id)
 	return rr, nil
 }
 
@@ -24,13 +15,34 @@ func newRavenReceiver(id string, source Source, reliable bool, ordering bool) (*
 // Message collector
 //
 type RavenReceiver struct {
-	id          string
-	source      Source
-	isReliable  bool
+	id     string
+	source Source
+
+	//Options define characteristics of a receiver.
+	options struct {
+		isReliable, ordering bool
+	}
+
+	//Q to store processing and dead messages.
+	// used only when marked reliable.
 	processingQ Q
 	deadQ       Q
-	ordering    bool
-	farm        *Farm
+
+	// Farm to which reveiver belongs.
+	farm *Farm
+}
+
+// Mark the Q as reliable.
+func (this *RavenReceiver) MarkReliable() *RavenReceiver {
+	this.options.isReliable = true
+	this.defineProcessingQ().defineDeadQ()
+	return this
+}
+
+// Mark the Q as ordered.
+func (this *RavenReceiver) MarkOrdered() *RavenReceiver {
+	this.options.ordering = true
+	return this
 }
 
 func (this *RavenReceiver) setSource(s Source) *RavenReceiver {
@@ -38,11 +50,9 @@ func (this *RavenReceiver) setSource(s Source) *RavenReceiver {
 	return this
 }
 
-func (this *RavenReceiver) setId(id string) error {
-	if id == "" {
-		return fmt.Errorf("You need to define a unique ID for your consumer.")
-	}
-	return nil
+func (this *RavenReceiver) setId(id string) *RavenReceiver {
+	this.id = id
+	return this
 }
 
 func (this *RavenReceiver) defineProcessingQ() *RavenReceiver {
