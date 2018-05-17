@@ -26,6 +26,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	receiver.MarkReliable().MarkOrdered()
 	receiver.Start(c)
 }
 

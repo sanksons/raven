@@ -2,6 +2,7 @@ package raven
 
 import (
 	"fmt"
+	"time"
 )
 
 func newRavenReceiver(id string, source Source) (*RavenReceiver, error) {
@@ -71,6 +72,16 @@ func (this *RavenReceiver) defineDeadQ() *RavenReceiver {
 
 //@todo: implement all the necessary validations required for a receiver.
 func (this *RavenReceiver) validate() error {
+	//Check if Id, Source and farm are defined.
+	if this.id == "" {
+		return fmt.Errorf("An Id needs to be assigned to Receiver. Make sure its unique within source")
+	}
+	if this.source.IsEmpty() {
+		return fmt.Errorf("Receiver Source cannot be Empty")
+	}
+	if this.farm == nil {
+		return fmt.Errorf("You need to define to which farm this receiver belongs.")
+	}
 	return nil
 }
 
@@ -92,7 +103,10 @@ func (this *RavenReceiver) Start(f func(string) error) error {
 			//add a wait here.
 			//log error
 			fmt.Println(err.Error())
-			return err
+			fmt.Println("Waiting for 5 seconds, before retrying.")
+			time.Sleep(5 * time.Second)
+			//return err
+			continue
 		}
 
 		execerr := f(msg.String()) //process message
