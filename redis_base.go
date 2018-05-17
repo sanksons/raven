@@ -104,7 +104,8 @@ func (this *redisbase) MarkProcessed(m *Message, procQ Q) error {
 		return nil
 	}
 	fmt.Printf("Marking message [%d] processed.\n", m.Id)
-	return failSafeExec(func() error {
+	return failSafeExec(func() error { //@todo: use ltrim instead of rpop.
+		//to make sure no previous message remains.
 		ret := this.Client.RPop(procQ.GetName())
 		err := ret.Err()
 		if err != nil && err != redis.Nil {

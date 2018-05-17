@@ -113,12 +113,22 @@ func (this *RavenReceiver) Start(f func(string) error) error {
 		execerr := f(msg.String()) //process message
 		if execerr == nil {
 			//free up message from processing Q
-			//@todo: do I need to check for error here.??
-			this.farm.manager.MarkProcessed(msg, this.processingQ)
+			err := this.farm.manager.MarkProcessed(msg, this.processingQ)
+			if err != nil {
+				fmt.Printf("Could Not mark message as processed. Message : %+v, Queue: %s\n",
+					msg,
+					this.source.GetName(),
+				)
+			}
 		} else {
 			//store in DeadQ
-			//@todo: do I need to check for error here.??
-			this.farm.manager.MarkFailed(msg, this.deadQ, this.processingQ)
+			err := this.farm.manager.MarkFailed(msg, this.deadQ, this.processingQ)
+			if err != nil {
+				fmt.Printf("Could Not mark message as dead. Message : %+v, Queue: %s\n",
+					msg,
+					this.source.GetName(),
+				)
+			}
 		}
 
 	}
