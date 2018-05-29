@@ -11,3 +11,5 @@ var ErrInvalidDestination error = errors.New("Invalid Destination defined")
 var ErrEmptyQueue error = errors.New("Empty Queue")
 
 var ErrNotImplemented error = errors.New("Feature Not Implemented")
+
+var ErrTmpFailure error = errors.New("Temporary Failure")

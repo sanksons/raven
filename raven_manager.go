@@ -18,6 +18,9 @@ const MAX_TRY_LIMIT = 3
 //
 type RavenManager interface {
 
+	// Tasks to be performed at consumer start.
+	PreStartup(r RavenReceiver) error
+
 	//get Sequence to be allocated to message.
 	//GetMsgSeq(mtype string, destination Destination) (int, error)
 
@@ -26,7 +29,7 @@ type RavenManager interface {
 
 	// Source from which message is to be received.
 	// Q in which message is to be stored for temporary basis.
-	Receive(source Source, processingQ Q) (*Message, error)
+	Receive(r RavenReceiver) (*Message, error)
 
 	// Reliable version of above method.
 	// Source from which message is to be received.
@@ -34,8 +37,14 @@ type RavenManager interface {
 	//ReceiveReliable(source Source, processingQ Q) (*Message, error)
 
 	// Mark the supplied message as processed.
-	MarkProcessed(message *Message, processingQ Q) error
+	MarkProcessed(message *Message, r RavenReceiver) error
 
 	// Mark the supplied message as failed.
-	MarkFailed(message *Message, deadQ Q, processingQ Q) error
+	MarkFailed(message *Message, r RavenReceiver) error
+
+	// Provides graceful shutdown of the receiver.
+	KillReceiver(r RavenReceiver) error
+
+	//Reque message.
+	RequeMessage(message Message, r RavenReceiver) error
 }

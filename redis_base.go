@@ -7,7 +7,7 @@ import (
 	"github.com/go-redis/redis"
 )
 
-//var _ RedisClient = (*RedisSimpleClient)(nil)
+var _ RedisClient = (*RedisSimpleClient)(nil)
 var _ RedisClient = (*RedisClusterClient)(nil)
 
 type RedisClient interface {
@@ -15,15 +15,56 @@ type RedisClient interface {
 	BRPop(time.Duration, ...string) *redis.StringSliceCmd
 	BRPopLPush(string, string, time.Duration) *redis.StringCmd
 	RPop(string) *redis.StringCmd
+	RPush(key string, values ...interface{}) *redis.IntCmd
 	RPopLPush(string, string) *redis.StringCmd
+	RPopRPush(string, string) error
 }
 
 type RedisSimpleClient struct {
 	*redis.Client
 }
 
+func (this *RedisSimpleClient) RPopRPush(popfrom string, pushto string) error {
+	return this.Watch(func(tx *redis.Tx) error {
+		res := tx.RPop(popfrom)
+		data, err := res.Result()
+		if err != nil && err != redis.Nil {
+			return err
+		}
+		if err == redis.Nil {
+			return ErrEmptyQueue
+		}
+		pushres := tx.RPush(pushto, data)
+		if pushres.Err() != nil {
+			return pushres.Err()
+		}
+		return nil
+	}, popfrom)
+}
+
 type RedisClusterClient struct {
 	*redis.ClusterClient
+}
+
+func (this *RedisClusterClient) RPopRPush(popfrom string, pushto string) error {
+
+	err := this.Watch(func(tx *redis.Tx) error {
+		res := tx.RPop(popfrom)
+		data, err := res.Result()
+		if err != nil && err != redis.Nil {
+			return err
+		}
+		if err == redis.Nil {
+			return nil
+		}
+		pushres := tx.RPush(pushto, data)
+		if pushres.Err() != nil {
+			return pushres.Err()
+		}
+		return nil
+	}, popfrom)
+
+	return err
 }
 
 //
@@ -46,16 +87,16 @@ func (this *redisbase) Send(message Message, dest Destination) error {
 	return nil
 }
 
-func (this *redisbase) Receive(source Source, procQ Q) (*Message, error) {
+func (this *redisbase) Receive(r RavenReceiver) (*Message, error) {
 
 	var message string
 	var err error
-	if procQ.IsEmpty() {
-		fmt.Printf("Receiving from Q [%s] Non Reliable.\n", source.GetName())
-		message, err = this.receive(source)
+	if !r.options.isReliable {
+		fmt.Printf("Receiving from Q [%s] Non Reliable.\n", r.source.GetName())
+		message, err = this.receive(r.source)
 	} else {
-		fmt.Printf("Receiving from Q [%s] Reliable.\n", source.GetName())
-		message, err = this.receiveReliable(source, procQ)
+		fmt.Printf("Receiving from Q [%s] Reliable.\n", r.source.GetName())
+		message, err = this.receiveReliable(r.source, r.processingQ)
 	}
 	if err != nil {
 		return nil, err
@@ -98,15 +139,15 @@ func (this *redisbase) receiveReliable(source Source, procQ Q) (string, error) {
 	return sliceRes, nil
 }
 
-func (this *redisbase) MarkProcessed(m *Message, procQ Q) error {
+func (this *redisbase) MarkProcessed(m *Message, r RavenReceiver) error {
 
-	if procQ.IsEmpty() {
+	if !r.options.isReliable {
 		return nil
 	}
-	fmt.Printf("Marking message [%d] processed.\n", m.Id)
+	fmt.Printf("Marking message [%s] processed.\n", m.Id)
 	return failSafeExec(func() error { //@todo: use ltrim instead of rpop.
 		//to make sure no previous message remains.
-		ret := this.Client.RPop(procQ.GetName())
+		ret := this.Client.RPop(r.processingQ.GetName())
 		err := ret.Err()
 		if err != nil && err != redis.Nil {
 			return err
@@ -115,47 +156,61 @@ func (this *redisbase) MarkProcessed(m *Message, procQ Q) error {
 	}, MAX_TRY_LIMIT)
 }
 
-func (this *redisbase) MarkFailed(m *Message, deadQ Q, processingQ Q) error {
+func (this *redisbase) MarkFailed(m *Message, r RavenReceiver) error {
 
-	if m == nil || (deadQ.IsEmpty() && processingQ.IsEmpty()) {
+	if m == nil || (!r.options.isReliable) {
 		return nil //nothing to do
 	}
 
-	fmt.Printf("DeadQ is [%s], ProcessingQ is [%s]\n", deadQ.GetName(), processingQ.GetName())
-	// Simply remove from processing Q
-	if deadQ.IsEmpty() {
-		fmt.Printf("Marking message dead [%d] . Simply remove from processing Q.\n", m.Id)
-		return failSafeExec(func() error {
-			ret := this.Client.RPop(processingQ.GetName())
-			err := ret.Err()
-			if err != nil && err != redis.Nil {
-				return err
-			}
-			return nil
-		}, MAX_TRY_LIMIT)
-	}
-
-	// Simply put in deadQ
-	if processingQ.IsEmpty() {
-		fmt.Printf("Marking message dead [%s] . Simply put in dead Q.\n", m.Id)
-		return failSafeExec(func() error {
-			ret := this.Client.LPush(deadQ.GetName(), m.String())
-			err := ret.Err()
-			if err != nil && err != redis.Nil {
-				return err
-			}
-			return nil
-		}, MAX_TRY_LIMIT)
-	}
-
-	// else remove from processingQ and put in deadQ
+	fmt.Printf("DeadQ is [%s], ProcessingQ is [%s]\n", r.deadQ.GetName(), r.processingQ.GetName())
 	fmt.Printf("Marking message dead [%s] . Fully functional.\n", m.Id)
+
 	return failSafeExec(func() error {
-		ret := this.Client.RPopLPush(processingQ.GetName(), deadQ.GetName())
+		ret := this.Client.RPopLPush(r.processingQ.GetName(), r.deadQ.GetName())
 		err := ret.Err()
 		if err != nil && err != redis.Nil {
 			return err
 		}
 		return nil
 	}, MAX_TRY_LIMIT)
+}
+
+//move any pending items from processingQ to sourceQ.
+func (this *redisbase) PreStartup(receiver RavenReceiver) error {
+	if !receiver.options.isReliable {
+		//no processingQ specified. nothing to do
+		return nil
+	}
+	var finished bool
+	//var err error
+	for !finished {
+		err := this.Client.RPopRPush(receiver.processingQ.GetName(), receiver.source.GetName())
+		if err == ErrEmptyQueue {
+			finished = true
+			break
+		}
+		if err == nil {
+			continue
+		}
+		//something went wrong
+		return err
+	}
+	return nil
+}
+
+func (this *redisbase) KillReceiver(r RavenReceiver) error {
+	return ErrNotImplemented
+}
+
+func (this *redisbase) RequeMessage(message Message, receiver RavenReceiver) error {
+	if !receiver.options.isReliable {
+		//simply reque message
+		ret := this.Client.RPush(receiver.source.GetName(), message.toJson())
+		if ret.Err() != nil {
+			return ret.Err()
+		}
+		return nil
+	}
+	//reque and remove from processing.
+	return this.Client.RPopRPush(receiver.processingQ.GetName(), receiver.source.GetName())
 }

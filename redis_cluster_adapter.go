@@ -24,6 +24,6 @@ func InitializeRedisCluster(config RedisClusterConfig) *RedisCluster {
 		PoolSize: config.PoolSize,
 	})
 	redisCluster := new(RedisCluster)
-	redisCluster.Client = client
+	redisCluster.Client = &RedisClusterClient{client}
 	return redisCluster
 }

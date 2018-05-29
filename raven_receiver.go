@@ -21,6 +21,7 @@ type RavenReceiver struct {
 
 	//Options define characteristics of a receiver.
 	options struct {
+		//can we remove reliable from here ?
 		isReliable, ordering bool
 	}
 
@@ -90,15 +91,22 @@ func (this *RavenReceiver) Start(f func(string) error) error {
 	if verr := this.validate(); verr != nil {
 		return verr
 	}
+	receiver := *this
+	//startup con
+	if err := this.farm.manager.PreStartup(receiver); err != nil {
+		return err
+	}
+
 	// this blocks
 	for {
-		//this blocks
-		msg, err := this.farm.manager.Receive(this.source, this.processingQ)
+		//this blocks, so no need for wait on empty Q.
+		msg, err := this.farm.manager.Receive(receiver)
 		if err != nil && err == ErrEmptyQueue {
-			//Q is empty, Simple recheck.
+			//Q is empty, Simply recheck.
 			fmt.Println("Queue is empty recheck")
 			continue
 		}
+		// Something went wrong.
 		if err != nil {
 			//add a wait here.
 			//log error
@@ -113,7 +121,7 @@ func (this *RavenReceiver) Start(f func(string) error) error {
 		execerr := f(msg.String()) //process message
 		if execerr == nil {
 			//free up message from processing Q
-			err := this.farm.manager.MarkProcessed(msg, this.processingQ)
+			err := this.farm.manager.MarkProcessed(msg, receiver)
 			if err != nil {
 				fmt.Printf("Could Not mark message as processed. Message : %+v, Queue: %s\n",
 					msg,
@@ -122,7 +130,7 @@ func (this *RavenReceiver) Start(f func(string) error) error {
 			}
 		} else {
 			//store in DeadQ
-			err := this.farm.manager.MarkFailed(msg, this.deadQ, this.processingQ)
+			err := this.farm.manager.MarkFailed(msg, receiver)
 			if err != nil {
 				fmt.Printf("Could Not mark message as dead. Message : %+v, Queue: %s\n",
 					msg,

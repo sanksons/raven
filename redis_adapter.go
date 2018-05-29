@@ -24,6 +24,6 @@ func InitializeRedis(config RedisSimpleConfig) *RedisSimple {
 		PoolSize: config.PoolSize,
 	})
 	redisS := new(RedisSimple)
-	redisS.Client = client
+	redisS.Client = &RedisSimpleClient{client}
 	return redisS
 }
