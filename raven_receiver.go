@@ -128,6 +128,17 @@ func (this *RavenReceiver) Start(f func(string) error) error {
 					this.source.GetName(),
 				)
 			}
+		} else if execerr == ErrTmpFailure {
+			err := this.farm.manager.RequeMessage(*msg, receiver)
+			if err != nil {
+				fmt.Printf("Could Not Reque message. Message : %+v, Queue: %s\n",
+					msg,
+					this.source.GetName(),
+				)
+			}
+			//sleep till 5 seconds, before repulling message.
+			time.Sleep(5 * time.Second)
+
 		} else {
 			//store in DeadQ
 			err := this.farm.manager.MarkFailed(msg, receiver)

@@ -18,6 +18,8 @@ type RedisClient interface {
 	RPush(key string, values ...interface{}) *redis.IntCmd
 	RPopLPush(string, string) *redis.StringCmd
 	RPopRPush(string, string) error
+	LRange(string, int64, int64) *redis.StringSliceCmd
+	Del(keys ...string) *redis.IntCmd
 }
 
 type RedisSimpleClient struct {
@@ -25,6 +27,7 @@ type RedisSimpleClient struct {
 }
 
 func (this *RedisSimpleClient) RPopRPush(popfrom string, pushto string) error {
+
 	return this.Watch(func(tx *redis.Tx) error {
 		res := tx.RPop(popfrom)
 		data, err := res.Result()
@@ -213,4 +216,31 @@ func (this *redisbase) RequeMessage(message Message, receiver RavenReceiver) err
 	}
 	//reque and remove from processing.
 	return this.Client.RPopRPush(receiver.processingQ.GetName(), receiver.source.GetName())
+}
+
+func (this *redisbase) ShowDeadQ(receiver RavenReceiver) ([]*Message, error) {
+	res := this.Client.LRange(receiver.deadQ.GetName(), 0, -1)
+	err := res.Err()
+	if err != nil && err == redis.Nil {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	data, _ := res.Result()
+	msgs := make([]*Message, 0, len(data))
+	for _, v := range data {
+		m := new(Message)
+		err := m.fromJson(v)
+		if err != nil {
+			continue
+		}
+		msgs = append(msgs, m)
+	}
+	return msgs, nil
+}
+
+func (this *redisbase) FlushDeadQ(receiver RavenReceiver) error {
+	res := this.Client.Del(receiver.deadQ.GetName())
+	return res.Err()
 }

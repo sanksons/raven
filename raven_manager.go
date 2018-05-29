@@ -21,20 +21,12 @@ type RavenManager interface {
 	// Tasks to be performed at consumer start.
 	PreStartup(r RavenReceiver) error
 
-	//get Sequence to be allocated to message.
-	//GetMsgSeq(mtype string, destination Destination) (int, error)
-
 	// Message to be sent, Destination name
 	Send(message Message, destination Destination) error
 
 	// Source from which message is to be received.
 	// Q in which message is to be stored for temporary basis.
 	Receive(r RavenReceiver) (*Message, error)
-
-	// Reliable version of above method.
-	// Source from which message is to be received.
-	// Q in which message is to be stored for temporary basis.
-	//ReceiveReliable(source Source, processingQ Q) (*Message, error)
 
 	// Mark the supplied message as processed.
 	MarkProcessed(message *Message, r RavenReceiver) error
@@ -47,4 +39,10 @@ type RavenManager interface {
 
 	//Reque message.
 	RequeMessage(message Message, r RavenReceiver) error
+
+	//Show messages reciding in dead Q
+	ShowDeadQ(r RavenReceiver) ([]*Message, error)
+
+	//Flush DeadQ
+	FlushDeadQ(r RavenReceiver) error
 }
