@@ -7,6 +7,7 @@ package raven
 //
 type Farm struct {
 	manager RavenManager
+	logger  Logger
 }
 
 //

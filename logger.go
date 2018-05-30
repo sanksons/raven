@@ -4,31 +4,70 @@ import (
 	"fmt"
 )
 
-type LOGLEVEL int
+var _ Logger = (*DummyLogger)(nil)
+var _ Logger = (*FmtLogger)(nil)
 
-const LOG_LEVEL_OFF LOGLEVEL = 0
-const LOG_LEVEL_ERR LOGLEVEL = 1
-const LOG_LEVEL_WRN LOGLEVEL = 2
-const LOG_LEVEL_DBG LOGLEVEL = 3
-
-type Logger struct {
-	level LOGLEVEL
+type Logger interface {
+	Debug(...interface{})
+	Info(...interface{})
+	Warning(...interface{})
+	Error(...interface{})
+	Fatal(...interface{})
 }
 
-func (this *Logger) Debug(msg interface{}) {
-	this.log(LOG_LEVEL_DBG, msg)
+//
+// This is used when no logger is specified.
+//
+type DummyLogger struct {
 }
 
-func (this *Logger) Warning(msg interface{}) {
-	this.log(LOG_LEVEL_WRN, msg)
+func (this *DummyLogger) Debug(...interface{}) {
+	return
 }
 
-func (this *Logger) Error(msg interface{}) {
-	this.log(LOG_LEVEL_ERR, msg)
+func (this *DummyLogger) Info(...interface{}) {
+	return
 }
 
-func (this *Logger) log(level LOGLEVEL, msg interface{}) {
-	if level <= this.level {
-		fmt.Printf("%v\n", msg)
-	}
+func (this *DummyLogger) Warning(...interface{}) {
+	return
+}
+
+func (this *DummyLogger) Error(...interface{}) {
+	return
+}
+
+func (this DummyLogger) Fatal(...interface{}) {
+	return
+}
+
+//
+// Helper logger.
+//
+type FmtLogger struct {
+}
+
+func (this FmtLogger) Debug(v ...interface{}) {
+	fmt.Println(v)
+	return
+}
+
+func (this FmtLogger) Info(v ...interface{}) {
+	fmt.Println(v)
+	return
+}
+
+func (this FmtLogger) Warning(v ...interface{}) {
+	fmt.Println(v)
+	return
+}
+
+func (this FmtLogger) Error(v ...interface{}) {
+	fmt.Println(v)
+	return
+}
+
+func (this FmtLogger) Fatal(v ...interface{}) {
+	fmt.Println(v)
+	return
 }

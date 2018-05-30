@@ -28,9 +28,3 @@ func failSafeExec(f func() error, maxtry int) error {
 	}
 	return nil
 }
-
-func GetLogger() *Logger {
-	l := new(Logger)
-	l.level = 10
-	return l
-}

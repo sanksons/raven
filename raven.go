@@ -9,8 +9,16 @@ const FARM_TYPE_REDISCLUSTER = "redis-cluster"
 // mtype: Farm magaer type.
 // config: Farm manager config.
 //
-func InitializeFarm(mtype string, config interface{}) (*Farm, error) {
+func InitializeFarm(mtype string, config interface{}, inlogger *Logger) (*Farm, error) {
 	f := new(Farm)
+
+	//assign logger
+	f.logger = new(DummyLogger)
+	if inlogger != nil {
+		f.logger = *inlogger
+	}
+
+	//assign adapter
 	switch mtype {
 	case FARM_TYPE_REDISCLUSTER:
 		conf := config.(RedisClusterConfig)
