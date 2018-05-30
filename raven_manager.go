@@ -1,15 +1,7 @@
 package raven
 
-import "time"
-
 var _ RavenManager = (*RedisSimple)(nil)
 var _ RavenManager = (*RedisCluster)(nil)
-
-//Time to wait incase Q is empty.
-const BLOCK_FOR_DURATION = 10 * time.Second
-
-//No. of times to try incase of failure.
-const MAX_TRY_LIMIT = 3
 
 //
 // An interface to be implemented by all Raven Managers.

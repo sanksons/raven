@@ -7,6 +7,12 @@ import (
 	"github.com/go-redis/redis"
 )
 
+//No. of times to try incase of failure.
+const MAX_TRY_LIMIT = 3
+
+//Time to wait incase Q is empty.
+const BLOCK_FOR_DURATION = 10 * time.Second
+
 var _ RedisClient = (*RedisSimpleClient)(nil)
 var _ RedisClient = (*RedisClusterClient)(nil)
 

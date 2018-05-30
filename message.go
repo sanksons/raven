@@ -4,12 +4,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-//const KEY_TYPE_PB_SEQ = "publisher-seq"
+const DEFAULT_MSG_TYPE = "DEF"
 
+//
+// Prepare message based on the specified details.
+//
 func PrepareMessage(id string, mtype string, data string) Message {
 
+	if mtype == "" {
+		mtype = DEFAULT_MSG_TYPE
+	}
+	if id == "" {
+		uid, _ := uuid.NewUUID()
+		id = uid.String()
+	}
 	return Message{
 		Id:   id,
 		Data: data,
@@ -20,8 +32,6 @@ func PrepareMessage(id string, mtype string, data string) Message {
 //
 // The message that is sent and retrieved.
 // @todo: need to check if we can avoid json encoding and decoding.
-// @todo: check if we need counter or time is enough.
-//
 type Message struct {
 	Id   string
 	Type string
@@ -33,6 +43,7 @@ type Message struct {
 	mtime time.Time
 }
 
+// String representation of message.
 func (this Message) String() string {
 	str, _ := json.Marshal(this)
 	return string(str)
@@ -51,6 +62,7 @@ func (this *Message) fromJson(data string) error {
 	return err
 }
 
+//Check if its an empty message.
 func (this *Message) isEmpty() bool {
 	if this.Data == "" {
 		return true

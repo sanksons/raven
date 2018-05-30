@@ -1,14 +1,17 @@
 package raven
 
 import (
-	"fmt"
 	"strings"
 )
 
+// createQ based on the supplied name and bucket.
 func createQ(name string, bucket string) Q {
 	return Q{name: name, bucket: bucket}
 }
 
+//
+// A type for each Q.
+//
 type Q struct {
 	//Name of the Queue
 	name string
@@ -17,6 +20,7 @@ type Q struct {
 	bucket string
 }
 
+//Check if Q is empty.
 func (this *Q) IsEmpty() bool {
 	if this.name == "" {
 		return true
@@ -35,6 +39,9 @@ func (this *Q) GetBucket() string {
 	return strings.ToLower(this.bucket)
 }
 
+//
+// Exposed method for creation of new Source.
+//
 func CreateSource(name string, bucket string) Source {
 	return Source{
 		createQ(name, bucket),
@@ -48,12 +55,14 @@ type Source struct {
 	Q
 }
 
+//
+// Exposed methos for creation of new Destination.
+//
 func CreateDestination(name string, bucket string) Destination {
 
 	d := Destination{
 		createQ(name, bucket),
 	}
-	fmt.Printf("Destination:%v \n", d)
 	return d
 }
 

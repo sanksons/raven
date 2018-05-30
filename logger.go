@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Define level for each log type
 const FATAL_LEVEL = 0
 const ERROR_LEVEL = 0
 const WRN_LEVEL = 1
@@ -15,6 +16,9 @@ const DBG_LEVEL = 3
 var _ Logger = (*DummyLogger)(nil)
 var _ Logger = (*FmtLogger)(nil)
 
+//
+// Exposed logger interface
+//
 type Logger interface {
 	Debug(...interface{})
 	Info(...interface{})
@@ -50,7 +54,7 @@ func (this DummyLogger) Fatal(...interface{}) {
 }
 
 //
-// Helper logger.
+// Helper Fmt logger.
 //
 type FmtLogger struct {
 	Level int

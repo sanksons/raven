@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// Initiate a Raven Receiver.
 func newRavenReceiver(id string, source Source) (*RavenReceiver, error) {
 	rr := new(RavenReceiver)
 
@@ -13,15 +14,20 @@ func newRavenReceiver(id string, source Source) (*RavenReceiver, error) {
 }
 
 //
-// Message collector
+// Raven Receiver / Message collector
 //
 type RavenReceiver struct {
-	id     string
+	//Id assigned to this receiver.
+	//Will be helpful to keep this unique across receivers.
+	id string
+
+	//Source where to look for ravens.
 	source Source
 
 	//Options define characteristics of a receiver.
 	options struct {
-		//can we remove reliable from here ?
+		//Specifies if we want to use reliable Q or not
+		//@todo: ordering is yet to be implemented.
 		isReliable, ordering bool
 	}
 
@@ -41,6 +47,7 @@ func (this RavenReceiver) String() string {
 	)
 }
 
+//get the logger object.
 func (this *RavenReceiver) getLogger() Logger {
 	return this.farm.logger
 }
@@ -99,7 +106,9 @@ func (this *RavenReceiver) validate() error {
 
 func (this *RavenReceiver) Start(f func(m *Message) error) error {
 
-	this.getLogger().Info(this.source.GetName(), this.id, fmt.Sprintf("Starting Raven receiver with config, %s", this))
+	this.getLogger().Info(this.source.GetName(), this.id,
+		fmt.Sprintf("Starting Raven receiver with config, %s", this),
+	)
 	if verr := this.validate(); verr != nil {
 		return verr
 	}
