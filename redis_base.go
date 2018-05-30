@@ -82,7 +82,6 @@ type redisbase struct {
 //
 func (this *redisbase) Send(message Message, dest Destination) error {
 
-	fmt.Printf("Publishing to Q [%s]\n\n", dest.GetName())
 	ret := this.Client.LPush(dest.GetName(), message.toJson())
 	if ret.Err() != nil {
 		return ret.Err()
@@ -95,10 +94,9 @@ func (this *redisbase) Receive(r RavenReceiver) (*Message, error) {
 	var message string
 	var err error
 	if !r.options.isReliable {
-		fmt.Printf("Receiving from Q [%s] Non Reliable.\n", r.source.GetName())
+
 		message, err = this.receive(r.source)
 	} else {
-		fmt.Printf("Receiving from Q [%s] Reliable.\n", r.source.GetName())
 		message, err = this.receiveReliable(r.source, r.processingQ)
 	}
 	if err != nil {
@@ -106,7 +104,6 @@ func (this *redisbase) Receive(r RavenReceiver) (*Message, error) {
 	}
 	var m *Message = new(Message)
 	err = m.fromJson(message)
-	fmt.Printf("Message is: %+v\n", m)
 	return m, nil
 }
 
@@ -121,7 +118,6 @@ func (this *redisbase) receive(source Source) (string, error) {
 		return "", err
 	}
 	sliceRes := ret.Val()
-	fmt.Printf("%v\n", sliceRes)
 	if len(sliceRes) == 2 { //check if its what we expected.
 		return sliceRes[1], nil
 	}
@@ -147,7 +143,7 @@ func (this *redisbase) MarkProcessed(m *Message, r RavenReceiver) error {
 	if !r.options.isReliable {
 		return nil
 	}
-	fmt.Printf("Marking message [%s] processed.\n", m.Id)
+
 	return failSafeExec(func() error { //@todo: use ltrim instead of rpop.
 		//to make sure no previous message remains.
 		ret := this.Client.RPop(r.processingQ.GetName())
@@ -164,9 +160,6 @@ func (this *redisbase) MarkFailed(m *Message, r RavenReceiver) error {
 	if m == nil || (!r.options.isReliable) {
 		return nil //nothing to do
 	}
-
-	fmt.Printf("DeadQ is [%s], ProcessingQ is [%s]\n", r.deadQ.GetName(), r.processingQ.GetName())
-	fmt.Printf("Marking message dead [%s] . Fully functional.\n", m.Id)
 
 	return failSafeExec(func() error {
 		ret := this.Client.RPopLPush(r.processingQ.GetName(), r.deadQ.GetName())

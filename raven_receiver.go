@@ -35,7 +35,7 @@ type RavenReceiver struct {
 }
 
 func (this RavenReceiver) String() string {
-	return fmt.Sprintf("id:[%s], source:[%s], reliable:[%v], processingQ:[%s], deadQ:[%s]",
+	return fmt.Sprintf("id: %s, source: %s , reliable: %v, processingQ: %s, deadQ: %s",
 		this.id, this.source.GetName(), this.options.isReliable, this.processingQ.GetName(),
 		this.deadQ.GetName(),
 	)
@@ -97,9 +97,9 @@ func (this *RavenReceiver) validate() error {
 	return nil
 }
 
-func (this *RavenReceiver) Start(f func(string) error) error {
+func (this *RavenReceiver) Start(f func(m *Message) error) error {
 
-	this.getLogger().Info(fmt.Sprintf("Starting Raven receiver, %s", this))
+	this.getLogger().Info(this.source.GetName(), this.id, fmt.Sprintf("Starting Raven receiver with config, %s", this))
 	if verr := this.validate(); verr != nil {
 		return verr
 	}
@@ -115,47 +115,47 @@ func (this *RavenReceiver) Start(f func(string) error) error {
 		msg, err := this.farm.manager.Receive(receiver)
 		if err != nil && err == ErrEmptyQueue {
 			//Q is empty, Simply recheck.
-			this.getLogger().Info(fmt.Sprintf("Queue [%s] is empty recheck", receiver.source.GetName()))
+			this.getLogger().Info(this.source.GetName(), this.id, "Queue is empty recheck")
 			continue
 		}
 		// Something went wrong.
 		if err != nil {
 			//add a wait here.
 			//log error
-			this.getLogger().Error(fmt.Sprintf("Got Error while receiving. Queue:[%s], Error:%s",
-				receiver.source.GetName(), err.Error()),
+			this.getLogger().Error(this.source.GetName(), this.id, fmt.Sprintf("Got Error while receiving. Error:%s",
+				err.Error()),
 			)
 
-			this.getLogger().Info("Waiting for 5 seconds before retrying.")
+			this.getLogger().Info(this.source.GetName(), this.id, "Waiting for 5 seconds before retrying.")
 			time.Sleep(5 * time.Second)
 			continue
 		}
 
-		this.getLogger().Info(fmt.Sprintf("Received Message: [%s], from Q [%s]",
-			msg,
-			receiver.source.GetName()),
+		this.getLogger().Info(this.source.GetName(), this.id, fmt.Sprintf("Received Message: %s",
+			msg),
 		)
 
-		execerr := f(msg.String()) //process message
+		execerr := f(msg) //process message
 
 		if execerr == nil {
 			//free up message from processing Q
 			err := this.farm.manager.MarkProcessed(msg, receiver)
 			if err != nil {
 				this.getLogger().Error(
-					fmt.Sprintf("Could Not mark message as processed. Message : %s, Queue: %s",
-						msg, receiver.source.GetName(),
-					),
+					this.source.GetName(), this.id,
+					fmt.Sprintf("Could Not mark message as processed. Message : %s", msg),
 				)
 			}
 		} else if execerr == ErrTmpFailure {
 			this.getLogger().Info(
-				fmt.Sprintf("Got temporary error while processing message [%s], requeing it", msg.Id),
+				this.source.GetName(), this.id,
+				fmt.Sprintf("Got temporary error while processing message [%s], requeing it", msg),
 			)
 			err := this.farm.manager.RequeMessage(*msg, receiver)
 			if err != nil {
 				this.getLogger().Error(
-					fmt.Sprintf("Could Not Reque message. Message : %s, Queue: %s", msg, receiver.source.GetName()),
+					this.source.GetName(), this.id,
+					fmt.Sprintf("Could Not Reque message. Message : %s", msg),
 				)
 			}
 			//sleep till 5 seconds, before repulling message.
@@ -166,8 +166,8 @@ func (this *RavenReceiver) Start(f func(string) error) error {
 			err := this.farm.manager.MarkFailed(msg, receiver)
 			if err != nil {
 				this.getLogger().Error(
-					fmt.Sprintf("Could Not mark message as dead. Message : %s, Queue: %s",
-						msg, receiver.source.GetName()),
+					this.source.GetName(), this.id,
+					fmt.Sprintf("Could Not mark message as dead. Message : %s", msg),
 				)
 			}
 		}

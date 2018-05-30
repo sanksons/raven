@@ -2,6 +2,8 @@ package raven
 
 import (
 	"fmt"
+	"strings"
+	"time"
 )
 
 var _ Logger = (*DummyLogger)(nil)
@@ -48,26 +50,60 @@ type FmtLogger struct {
 }
 
 func (this FmtLogger) Debug(v ...interface{}) {
-	fmt.Println(v)
+	strArr := make([]string, 0, len(v))
+	for _, m := range v {
+		strArr = append(strArr, fmt.Sprintf("[%v]", m))
+	}
+
+	fmt.Printf("%s [DBG] %s\n",
+		time.Now().Format(time.StampMilli), strings.Join(strArr, " "))
 	return
 }
 
 func (this FmtLogger) Info(v ...interface{}) {
-	fmt.Println(v)
+
+	strArr := make([]string, 0, len(v))
+	for _, m := range v {
+		strArr = append(strArr, fmt.Sprintf("[%v]", m))
+	}
+
+	fmt.Printf("%s [INF] %s\n",
+		time.Now().Format(time.StampMilli), strings.Join(strArr, " "))
 	return
 }
 
 func (this FmtLogger) Warning(v ...interface{}) {
-	fmt.Println(v)
+
+	strArr := make([]string, 0, len(v))
+	for _, m := range v {
+		strArr = append(strArr, fmt.Sprintf("[%v]", m))
+	}
+
+	fmt.Printf("%s [WRN] %s\n",
+		time.Now().Format(time.StampMilli), strings.Join(strArr, " "))
 	return
 }
 
 func (this FmtLogger) Error(v ...interface{}) {
-	fmt.Println(v)
+
+	strArr := make([]string, 0, len(v))
+	for _, m := range v {
+		strArr = append(strArr, fmt.Sprintf("[%v]", m))
+	}
+
+	fmt.Printf("%s [ERR] %s\n",
+		time.Now().Format(time.StampMilli), strings.Join(strArr, " "))
 	return
 }
 
 func (this FmtLogger) Fatal(v ...interface{}) {
-	fmt.Println(v)
+	strArr := make([]string, 0, len(v))
+	for _, m := range v {
+		strArr = append(strArr, fmt.Sprintf("[%v]", m))
+	}
+
+	fmt.Printf("%s [FAL] %s\n",
+		time.Now().Format(time.StampMilli), strings.Join(strArr, " "))
+
 	return
 }

@@ -25,6 +25,9 @@ func (this *Q) IsEmpty() bool {
 }
 
 func (this *Q) GetName() string {
+	if this.name == "" {
+		return ""
+	}
 	return strings.ToLower(this.name) + "-{" + strings.ToLower(this.bucket) + "}"
 }
 
