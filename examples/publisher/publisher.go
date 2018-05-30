@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/sanksons/raven"
@@ -37,7 +38,7 @@ func main() {
 		counter++
 
 		var mess raven.Message = raven.PrepareMessage(
-			string(counter), "pro", fmt.Sprintf("Hello %d!!", counter))
+			strconv.Itoa(counter), "", fmt.Sprintf("Hello %d!!", counter))
 
 		fmt.Printf("Publishing message [%+v]\n", mess)
 

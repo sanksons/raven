@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+const FATAL_LEVEL = 0
+const ERROR_LEVEL = 0
+const WRN_LEVEL = 1
+const INFO_LEVEL = 2
+const DBG_LEVEL = 3
+
 var _ Logger = (*DummyLogger)(nil)
 var _ Logger = (*FmtLogger)(nil)
 
@@ -47,9 +53,15 @@ func (this DummyLogger) Fatal(...interface{}) {
 // Helper logger.
 //
 type FmtLogger struct {
+	Level int
 }
 
 func (this FmtLogger) Debug(v ...interface{}) {
+
+	if this.Level < DBG_LEVEL {
+		return
+	}
+
 	strArr := make([]string, 0, len(v))
 	for _, m := range v {
 		strArr = append(strArr, fmt.Sprintf("[%v]", m))
@@ -61,6 +73,10 @@ func (this FmtLogger) Debug(v ...interface{}) {
 }
 
 func (this FmtLogger) Info(v ...interface{}) {
+
+	if this.Level < INFO_LEVEL {
+		return
+	}
 
 	strArr := make([]string, 0, len(v))
 	for _, m := range v {
@@ -74,6 +90,10 @@ func (this FmtLogger) Info(v ...interface{}) {
 
 func (this FmtLogger) Warning(v ...interface{}) {
 
+	if this.Level < WRN_LEVEL {
+		return
+	}
+
 	strArr := make([]string, 0, len(v))
 	for _, m := range v {
 		strArr = append(strArr, fmt.Sprintf("[%v]", m))
@@ -86,6 +106,10 @@ func (this FmtLogger) Warning(v ...interface{}) {
 
 func (this FmtLogger) Error(v ...interface{}) {
 
+	if this.Level < ERROR_LEVEL {
+		return
+	}
+
 	strArr := make([]string, 0, len(v))
 	for _, m := range v {
 		strArr = append(strArr, fmt.Sprintf("[%v]", m))
@@ -97,6 +121,9 @@ func (this FmtLogger) Error(v ...interface{}) {
 }
 
 func (this FmtLogger) Fatal(v ...interface{}) {
+	if this.Level < ERROR_LEVEL {
+		return
+	}
 	strArr := make([]string, 0, len(v))
 	for _, m := range v {
 		strArr = append(strArr, fmt.Sprintf("[%v]", m))

@@ -94,7 +94,6 @@ func (this *redisbase) Receive(r RavenReceiver) (*Message, error) {
 	var message string
 	var err error
 	if !r.options.isReliable {
-
 		message, err = this.receive(r.source)
 	} else {
 		message, err = this.receiveReliable(r.source, r.processingQ)

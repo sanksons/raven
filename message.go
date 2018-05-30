@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const KEY_TYPE_PUB_SEQ = "publisher-seq"
+//const KEY_TYPE_PB_SEQ = "publisher-seq"
 
 func PrepareMessage(id string, mtype string, data string) Message {
 
