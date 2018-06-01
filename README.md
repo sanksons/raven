@@ -96,9 +96,37 @@ Initiate Receiver and start receiving.
 receiver, _ := farm.GetRavenReceiver("one", source)
 
 //start receiving
-err := receiver.Start((message *raven.Message) error)
+err := receiver.Start(func (message *raven.Message) error {
+  fmt.Printf("Got message: %s\n", message)
+})
 ```
-
 ### Tracking Messages:
 
+How do I track messages ?
+
+You can create you own implementation for "raven.Logger" interface.
+or 
+Can use one of the built in (raven.Fmtlogger). 
+
+```go
+//using fmt logger
+loggerStrict := new(raven.FmtLogger)
+farm, err := raven.InitializeFarm(raven.FARM_TYPE_REDISCLUSTER, raven.RedisClusterConfig{
+        Addrs:    []string{"172.31.#.#:30001"},
+        PoolSize: 10,
+    },
+loggerStrict,
+)
+
+```
+
 ### Reliability:
+
+We understand that though Ravens are reliable, they can die and we may loose the message.
+The reliablility feature safeguards us from this.
+
+```go
+// Any receiver can be made reliable by calling.
+receiver.MarkReliable()
+//Make sure to call it before starting receiver.
+```
