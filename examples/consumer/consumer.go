@@ -36,7 +36,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Mark as Reliable and ordered.
+	// Mark as Reliable and Ordered.
 	//receiver.MarkReliable().MarkOrdered()
 
 	//start receiving
