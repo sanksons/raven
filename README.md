@@ -1,6 +1,9 @@
+![](raven.png)
 ## Raven
 
 Does what Ravens are meant to do i.e deliver messages from one place to another.
+
+![](raven.png)
 
 Supports following engines:
 - Redis
@@ -17,7 +20,7 @@ go get -u github.com/sanksons/raven
 
 Detailed examples are kept in examples directory. But for quick view:
 
-### Defining a Publisher:
+### Sending Messages:
 
 Initialize Raven Farm.
 
@@ -66,3 +69,5 @@ Make the Raven fly.
 //Make the Raven fly.
 myraven.Fly()
 ```
+
+### Receiving Messages:
