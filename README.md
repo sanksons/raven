@@ -3,8 +3,6 @@
 
 Does what Ravens are meant to do i.e deliver messages from one place to another.
 
-![](raven.png)
-
 Supports following engines:
 - Redis
 - Redis Cluster
