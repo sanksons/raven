@@ -69,3 +69,36 @@ myraven.Fly()
 ```
 
 ### Receiving Messages:
+
+Initialize Raven farm
+
+```go
+//Initialize Raven farm.
+farm, _ := raven.InitializeFarm(raven.FARM_TYPE_REDISCLUSTER, raven.RedisClusterConfig{
+        Addrs:    []string{"172.17.0.2:30001"},
+        PoolSize: 10,
+    },
+nil,
+)
+```
+Define a source from which to receive.
+
+```go
+// Define a source from which to receive.
+var source raven.Source = raven.CreateSource(SOURCE, BUCKET)
+
+```
+
+Initiate Receiver and start receiving.
+
+```go
+//Initiate Raven Receiver
+receiver, _ := farm.GetRavenReceiver("one", source)
+
+//start receiving
+err := receiver.Start((message *raven.Message) error)
+```
+
+### Tracking Messages:
+
+### Reliability:
