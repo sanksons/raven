@@ -3,6 +3,7 @@ package raven
 import "fmt"
 
 const FARM_TYPE_REDISCLUSTER = "redis-cluster"
+const FARM_TYPE_REDIS = "redis-simple"
 
 //
 // Entry point to this library.
@@ -23,6 +24,11 @@ func InitializeFarm(mtype string, config interface{}, inlogger Logger) (*Farm, e
 	case FARM_TYPE_REDISCLUSTER:
 		conf := config.(RedisClusterConfig)
 		redis := InitializeRedisCluster(conf)
+		f.manager = redis
+		return f, nil
+	case FARM_TYPE_REDIS:
+		conf := config.(RedisSimpleConfig)
+		redis := InitializeRedis(conf)
 		f.manager = redis
 		return f, nil
 

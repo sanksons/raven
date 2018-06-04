@@ -17,8 +17,8 @@ func main() {
 	//
 	loggerStrict := new(raven.FmtLogger)
 
-	farm, err := raven.InitializeFarm(raven.FARM_TYPE_REDISCLUSTER, raven.RedisClusterConfig{
-		Addrs:    []string{"172.17.0.2:30001"},
+	farm, err := raven.InitializeFarm(raven.FARM_TYPE_REDIS, raven.RedisSimpleConfig{
+		Addr:     "localhost:6379",
 		PoolSize: 10,
 	},
 		loggerStrict,
