@@ -35,6 +35,10 @@ func (this *Q) GetName() string {
 	return strings.ToLower(this.name) + "-{" + strings.ToLower(this.bucket) + "}"
 }
 
+func (this *Q) GetRawName() string {
+	return this.name
+}
+
 func (this *Q) GetBucket() string {
 	return strings.ToLower(this.bucket)
 }

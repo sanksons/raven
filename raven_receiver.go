@@ -77,14 +77,14 @@ func (this *RavenReceiver) setId(id string) *RavenReceiver {
 
 func (this *RavenReceiver) defineProcessingQ() *RavenReceiver {
 
-	qname := fmt.Sprintf("%s_processing_%s", this.source.GetName(), this.id)
+	qname := fmt.Sprintf("%s_processing_%s", this.source.GetRawName(), this.id)
 	this.processingQ = createQ(qname, this.source.GetBucket())
 	return this
 }
 
 func (this *RavenReceiver) defineDeadQ() *RavenReceiver {
 
-	qname := fmt.Sprintf("%s_dead", this.source.GetName())
+	qname := fmt.Sprintf("%s_dead", this.source.GetRawName())
 	this.deadQ = createQ(qname, this.source.GetBucket())
 	return this
 }
