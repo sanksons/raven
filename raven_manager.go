@@ -37,4 +37,7 @@ type RavenManager interface {
 
 	//Flush DeadQ
 	FlushDeadQ(r RavenReceiver) error
+
+	//Get InFlight Messages.
+	InFlightMessages() (int, error)
 }

@@ -26,6 +26,7 @@ type RedisClient interface {
 	RPopRPush(string, string) error
 	LRange(string, int64, int64) *redis.StringSliceCmd
 	Del(keys ...string) *redis.IntCmd
+	LLen(key string) *redis.IntCmd
 }
 
 type RedisSimpleClient struct {
@@ -241,4 +242,14 @@ func (this *redisbase) ShowDeadQ(receiver RavenReceiver) ([]*Message, error) {
 func (this *redisbase) FlushDeadQ(receiver RavenReceiver) error {
 	res := this.Client.Del(receiver.deadQ.GetName())
 	return res.Err()
+}
+
+func (this *redisbase) InFlightMessages(receiver RavenReceiver) (int, error) {
+
+	dat := this.Client.LLen(receiver.source.GetName())
+	v, err := dat.Result()
+	if err != nil {
+		return 0, err
+	}
+	return int(v), nil
 }

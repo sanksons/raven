@@ -104,6 +104,10 @@ func (this *RavenReceiver) validate() error {
 	return nil
 }
 
+func (this *RavenReceiver) GetInFlightRavens() (int, error) {
+	return 0, fmt.Errorf("To be impl")
+}
+
 func (this *RavenReceiver) Start(f func(m *Message) error) error {
 
 	this.getLogger().Info(this.source.GetName(), this.id,
