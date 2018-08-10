@@ -65,7 +65,7 @@ func (this *RedisClusterClient) RPopRPush(popfrom string, pushto string) error {
 			return err
 		}
 		if err == redis.Nil {
-			return nil
+			return ErrEmptyQueue
 		}
 		pushres := tx.RPush(pushto, data)
 		if pushres.Err() != nil {
@@ -132,6 +132,7 @@ func (this *redisbase) receive(source Source) (string, error) {
 
 func (this *redisbase) receiveReliable(source Source, procQ Q) (string, error) {
 	ret := this.Client.BRPopLPush(source.GetName(), procQ.GetName(), BLOCK_FOR_DURATION)
+
 	err := ret.Err()
 	if err != nil && err == redis.Nil {
 		//we got an error
@@ -214,7 +215,11 @@ func (this *redisbase) RequeMessage(message Message, receiver RavenReceiver) err
 		return nil
 	}
 	//reque and remove from processing.
-	return this.Client.RPopRPush(receiver.processingQ.GetName(), receiver.source.GetName())
+	err := this.Client.RPopRPush(receiver.processingQ.GetName(), receiver.source.GetName())
+	if err == ErrEmptyQueue {
+		err = nil
+	}
+	return err
 }
 
 func (this *redisbase) ShowDeadQ(receiver RavenReceiver) ([]*Message, error) {
