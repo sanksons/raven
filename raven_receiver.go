@@ -65,6 +65,25 @@ func (this *RavenReceiver) endNewrelicTransaction(txn newrelic.Transaction) {
 	txn.End()
 }
 
+func (this *RavenReceiver) recordHeartBeat(inflightCount int) {
+
+	if this.farm.newrelicApp == nil {
+		return
+	}
+	//Record Heart Beat
+	this.farm.newrelicApp.RecordCustomEvent(
+		fmt.Sprintf("Heartbeat-%s", this.id), map[string]interface{}{
+			"inflightcount": inflightCount,
+			"checkedAt":     time.Now(),
+			"queue":         this.source.GetName(),
+		},
+	)
+
+	this.getLogger().Info(this.source.GetName(), this.id, "HeartBeat",
+		fmt.Sprintf("In Flight ravens: %d", inflightCount),
+	)
+}
+
 //get the logger object.
 func (this *RavenReceiver) getLogger() Logger {
 	return this.farm.logger
@@ -135,17 +154,20 @@ func (this *RavenReceiver) StartHeartBeat() error {
 			// Incase of panic, restart for loop.
 			defer util.PanicHandler("HeartBeat")
 
+			// Pulse rate
+			time.Sleep(10 * time.Second)
+
 			cc, err := this.GetInFlightRavens()
 			if err != nil {
 				this.getLogger().Error(this.source.GetName(), this.id, "HeartBeat",
 					fmt.Sprintf("Error: %s", err.Error()),
 				)
-			} else {
-				this.getLogger().Info(this.source.GetName(), this.id, "HeartBeat",
-					fmt.Sprintf("In Flight ravens: %d", cc),
-				)
+				return
 			}
-			time.Sleep(10 * time.Second)
+
+			//Check if we can record health.
+			this.recordHeartBeat(cc)
+
 		}()
 	}
 }
