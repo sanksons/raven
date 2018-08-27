@@ -3,6 +3,8 @@ package raven
 import (
 	"fmt"
 	"time"
+
+	"github.com/sanksons/gowraps/util"
 )
 
 // Initiate a Raven Receiver.
@@ -108,7 +110,31 @@ func (this *RavenReceiver) GetInFlightRavens() (int, error) {
 	return 0, fmt.Errorf("To be impl")
 }
 
+func (this *RavenReceiver) StartHeartBeat() error {
+
+	for {
+		func() {
+			// Incase of panic, restart for loop.
+			defer util.PanicHandler("HeartBeat")
+
+			cc, err := this.GetInFlightRavens()
+			if err != nil {
+				this.getLogger().Error(this.source.GetName(), this.id, "HeartBeat",
+					fmt.Sprintf("Error: %s", err.Error()),
+				)
+			} else {
+				this.getLogger().Info(this.source.GetName(), this.id, "HeartBeat",
+					fmt.Sprintf("In Flight ravens: %d", cc),
+				)
+			}
+			time.Sleep(10 * time.Second)
+		}()
+	}
+}
+
 func (this *RavenReceiver) Start(f func(m *Message) error) error {
+
+	go this.StartHeartBeat()
 
 	this.getLogger().Info(this.source.GetName(), this.id,
 		fmt.Sprintf("Starting Raven receiver with config, %s", this),
