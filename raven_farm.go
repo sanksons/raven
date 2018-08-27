@@ -1,13 +1,18 @@
 package raven
 
+import (
+	"github.com/newrelic/go-agent"
+)
+
 //
 // Ravens are not like street dogs, they belong to a farm.
 // Each farm has a Raven manager, whose role is to contain implementation details of
 // each raven.
 //
 type Farm struct {
-	manager RavenManager
-	logger  Logger
+	manager     RavenManager
+	logger      Logger
+	newrelicApp newrelic.Application
 }
 
 //

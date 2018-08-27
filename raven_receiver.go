@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/newrelic/go-agent"
+
 	"github.com/sanksons/gowraps/util"
 )
 
@@ -47,6 +49,20 @@ func (this RavenReceiver) String() string {
 		this.id, this.source.GetName(), this.options.isReliable, this.processingQ.GetName(),
 		this.deadQ.GetName(),
 	)
+}
+
+func (this *RavenReceiver) getNewrelicTransaction() newrelic.Transaction {
+	if this.farm.newrelicApp != nil {
+		return this.farm.newrelicApp.StartTransaction(this.id, nil, nil)
+	}
+	return nil
+}
+
+func (this *RavenReceiver) endNewrelicTransaction(txn newrelic.Transaction) {
+	if txn == nil {
+		return
+	}
+	txn.End()
 }
 
 //get the logger object.
@@ -106,10 +122,12 @@ func (this *RavenReceiver) validate() error {
 	return nil
 }
 
+// Get Messages published but not picked for processing.
 func (this *RavenReceiver) GetInFlightRavens() (int, error) {
-	return 0, fmt.Errorf("To be impl")
+	return this.farm.manager.InFlightMessages(*this)
 }
 
+// Start HeartBeat of Receiver.
 func (this *RavenReceiver) StartHeartBeat() error {
 
 	for {
@@ -132,8 +150,9 @@ func (this *RavenReceiver) StartHeartBeat() error {
 	}
 }
 
-func (this *RavenReceiver) Start(f func(m *Message) error) error {
+func (this *RavenReceiver) Start(f func(m *Message, txn newrelic.Transaction) error) error {
 
+	//Start HeartBeat
 	go this.StartHeartBeat()
 
 	this.getLogger().Info(this.source.GetName(), this.id,
@@ -178,6 +197,7 @@ func (this *RavenReceiver) Start(f func(m *Message) error) error {
 		// Send Message for processing.
 		//
 		var execerr error
+		var txn newrelic.Transaction
 		func() {
 			// handle any panics occuring from client code.
 			defer func() {
@@ -185,10 +205,15 @@ func (this *RavenReceiver) Start(f func(m *Message) error) error {
 					emsg := fmt.Sprintf("Panic Occurred !!! Handled Gracefully \n Message: %s", msg)
 					execerr = fmt.Errorf(emsg)
 				}
+				// Check if transaction is started and needs to be wrapped up.
+				this.endNewrelicTransaction(txn)
 			}()
 
 			// Send Message for processing.
-			execerr = f(msg)
+			// Note: pass newrelic transaction alongside so that client can
+			// make use of it and record segments.
+			txn = this.getNewrelicTransaction()
+			execerr = f(msg, txn)
 		}()
 
 		if execerr == nil {
