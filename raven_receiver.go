@@ -148,7 +148,22 @@ func (this *RavenReceiver) Start(f func(m *Message) error) error {
 			msg),
 		)
 
-		execerr := f(msg) //process message
+		//
+		// Send Message for processing.
+		//
+		var execerr error
+		func() {
+			// handle any panics occuring from client code.
+			defer func() {
+				if r := recover(); r != nil {
+					emsg := fmt.Sprintf("Panic Occurred !!! Handled Gracefully \n Message: %s", msg)
+					execerr = fmt.Errorf(emsg)
+				}
+			}()
+
+			// Send Message for processing.
+			execerr = f(msg)
+		}()
 
 		if execerr == nil {
 			//free up message from processing Q
@@ -160,7 +175,7 @@ func (this *RavenReceiver) Start(f func(m *Message) error) error {
 				)
 			}
 		} else if execerr == ErrTmpFailure {
-			this.getLogger().Info(
+			this.getLogger().Error(
 				this.source.GetName(), this.id,
 				fmt.Sprintf("Got temporary error while processing message [%s], requeing it", msg),
 			)
@@ -175,6 +190,14 @@ func (this *RavenReceiver) Start(f func(m *Message) error) error {
 			time.Sleep(5 * time.Second)
 
 		} else {
+			// Found a permanent error while processing message.
+			this.getLogger().Error(
+				this.source.GetName(), this.id,
+				fmt.Sprintf(
+					"Got permanent error while processing message [%s], Discarding it, Error: %s", msg, execerr.Error(),
+				),
+			)
+
 			//store in DeadQ
 			err := this.farm.manager.MarkFailed(msg, receiver)
 			if err != nil {
