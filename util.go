@@ -28,3 +28,11 @@ func failSafeExec(f func() error, maxtry int) error {
 	}
 	return nil
 }
+
+//
+// A default message sharding logic to be used incase none is provided.
+//
+func DefaultShardlogic(m Message, boxes int) (string, error) {
+	//@todo: need to implement this.
+	return "1", nil
+}

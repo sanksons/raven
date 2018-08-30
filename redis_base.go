@@ -89,7 +89,12 @@ type redisbase struct {
 //
 func (this *redisbase) Send(message Message, dest Destination) error {
 
-	ret := this.Client.LPush(dest.GetName(), message.toJson())
+	box, err := dest.GetBox4Msg(message)
+	if err != nil {
+		return err
+	}
+
+	ret := this.Client.LPush(box.GetName(), message.toJson())
 	if ret.Err() != nil {
 		return ret.Err()
 	}
