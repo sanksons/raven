@@ -39,7 +39,6 @@ func (this *Raven) SetDestination(d Destination) *Raven {
 //
 // Send Message.
 //
-//@todo: use shard logic to find out the correct mesage box to deliver.
 func (this *Raven) Fly() error {
 	//Its a waste of raven if message is empty.
 	if this.message.isEmpty() {
@@ -49,7 +48,7 @@ func (this *Raven) Fly() error {
 	if err := this.destination.Validate(); err != nil {
 		return err
 	}
+	// Make it fly
 	this.message.mtime = time.Now()
 	return this.farm.manager.Send(this.message, this.destination)
-	//return nil
 }

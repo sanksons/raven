@@ -126,6 +126,10 @@ type Destination struct {
 	shardLogic func(Message, int) (string, error)
 }
 
+func (this *Destination) GetAllBoxes() ([]MsgBox, error) {
+	return this.MsgBoxes, nil
+}
+
 func (this *Destination) GetBox4Msg(m Message) (*MsgBox, error) {
 	boxId, err := this.shardLogic(m, len(this.MsgBoxes))
 	if err != nil {

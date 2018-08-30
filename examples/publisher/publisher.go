@@ -31,7 +31,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var destination raven.Destination = raven.CreateDestination(DESTINATION, BUCKET)
+	var destination raven.Destination = raven.CreateDestination(DESTINATION, 2, nil)
 
 	var counter int
 	for {
