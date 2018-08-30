@@ -258,3 +258,7 @@ func (this *redisbase) InFlightMessages(receiver RavenReceiver) (int, error) {
 	}
 	return int(v), nil
 }
+
+func (this *redisbase) FlushAll(r RavenReceiver) error {
+	return ErrNotImplemented
+}

@@ -42,6 +42,8 @@ type RavenReceiver struct {
 
 	// Farm to which reveiver belongs.
 	farm *Farm
+
+	startedAt time.Time
 }
 
 func (this RavenReceiver) String() string {
@@ -65,6 +67,7 @@ func (this *RavenReceiver) endNewrelicTransaction(txn newrelic.Transaction) {
 	txn.End()
 }
 
+//Record heartbeat of consumer.
 func (this *RavenReceiver) recordHeartBeat(inflightCount int) {
 
 	if this.farm.newrelicApp == nil {
@@ -80,7 +83,7 @@ func (this *RavenReceiver) recordHeartBeat(inflightCount int) {
 	)
 
 	this.getLogger().Info(this.source.GetName(), this.id, "HeartBeat",
-		fmt.Sprintf("In Flight ravens: %d", inflightCount),
+		fmt.Sprintf("In Flight Ravens: %d", inflightCount),
 	)
 }
 
@@ -176,6 +179,18 @@ func (this *RavenReceiver) Start(f func(m *Message, txn newrelic.Transaction) er
 
 	//Start HeartBeat
 	go this.StartHeartBeat()
+
+	return this.start(f)
+
+}
+
+func (this *RavenReceiver) StartServer() error {
+	return StartServer(this)
+}
+
+func (this *RavenReceiver) start(f func(m *Message, txn newrelic.Transaction) error) error {
+
+	this.startedAt = time.Now()
 
 	this.getLogger().Info(this.source.GetName(), this.id,
 		fmt.Sprintf("Starting Raven receiver with config, %s", this),

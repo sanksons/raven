@@ -38,6 +38,9 @@ type RavenManager interface {
 	//Flush DeadQ
 	FlushDeadQ(r RavenReceiver) error
 
+	//Flush All associated queues with a Receiver.
+	FlushAll(r RavenReceiver) error
+
 	//Get InFlight Messages.
 	InFlightMessages(r RavenReceiver) (int, error)
 }
