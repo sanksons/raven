@@ -32,7 +32,7 @@ func (this *Farm) GetRaven() *Raven {
 
 //
 // This function returns a picker which can be used to pick messages sent via raven.
-// aka  Consumer Code
+// aka Consumer Code
 //
 func (this *Farm) GetRavenReceiver(id string, s Source) (*RavenReceiver, error) {
 

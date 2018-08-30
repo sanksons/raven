@@ -75,17 +75,30 @@ func (this *Q) GetBucket() string {
 //
 // Exposed method for creation of new Source.
 //
-func CreateSource(name string, bucket string) Source {
-	return Source{
-		createQ(name, bucket),
+func CreateSource(name string, boxes int) Source {
+	if boxes < 1 {
+		boxes = 1
 	}
+	msgBoxes := make([]MsgBox, boxes)
+	i := 1
+	for i <= boxes {
+		q := createMsgBox(name, strconv.Itoa(i))
+		msgBoxes[i-1] = q
+		i++
+	}
+	s := Source{
+		Name:     name,
+		MsgBoxes: msgBoxes,
+	}
+	return s
 }
 
 //
 // Specifies the Queue Name from which messages needs to be retrieved.
 //
 type Source struct {
-	Q
+	Name     string
+	MsgBoxes []MsgBox
 }
 
 //
@@ -96,9 +109,9 @@ func CreateDestination(name string, boxes int, shardlogic func(Message, int) (st
 	if boxes < 1 {
 		boxes = 1
 	}
-	var i = 1
-
 	msgBoxes := make([]MsgBox, boxes)
+
+	i := 1
 	for i <= boxes {
 		q := createMsgBox(name, strconv.Itoa(i))
 		msgBoxes[i-1] = q

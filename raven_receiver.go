@@ -5,104 +5,39 @@ import (
 	"time"
 
 	"github.com/newrelic/go-agent"
-
 	"github.com/sanksons/gowraps/util"
 )
 
 // Initiate a Raven Receiver.
 func newRavenReceiver(id string, source Source) (*RavenReceiver, error) {
 	rr := new(RavenReceiver)
+	rr.setSource(source).setId(fmt.Sprintf("%s-%s", id, source.Name))
 
-	rr.setSource(source).setId(id)
+	// Generate MessageBox Receivers, for each message box
+	msgreceivers := make([]*MsgBoxReceiver, len(source.MsgBoxes))
+	for _, box := range source.MsgBoxes {
+		m := &MsgBoxReceiver{
+			id:     fmt.Sprintf("%s-%s", rr.id, box.GetBoxId()),
+			msgbox: box,
+			parent: rr,
+		}
+		msgreceivers = append(msgreceivers, m)
+	}
+
 	return rr, nil
 }
 
-//
-// Raven Receiver / Message collector
-//
 type RavenReceiver struct {
-	//Id assigned to this receiver.
-	//Will be helpful to keep this unique across receivers.
-	id string
-
-	//Source where to look for ravens.
-	source Source
-
-	//Options define characteristics of a receiver.
+	id      string
+	source  Source
 	options struct {
 		//Specifies if we want to use reliable Q or not
 		//@todo: ordering is yet to be implemented.
 		isReliable, ordering bool
 	}
-
-	//Q to store processing and dead messages.
-	// used only when marked reliable.
-	processingQ Q
-	deadQ       Q
-
-	// Farm to which reveiver belongs.
-	farm *Farm
-
+	receivers []*MsgBoxReceiver
+	farm      *Farm
 	startedAt time.Time
-}
-
-func (this RavenReceiver) String() string {
-	return fmt.Sprintf("id: %s, source: %s , reliable: %v, processingQ: %s, deadQ: %s",
-		this.id, this.source.GetName(), this.options.isReliable, this.processingQ.GetName(),
-		this.deadQ.GetName(),
-	)
-}
-
-func (this *RavenReceiver) getNewrelicTransaction() newrelic.Transaction {
-	if this.farm.newrelicApp != nil {
-		return this.farm.newrelicApp.StartTransaction(this.id, nil, nil)
-	}
-	return nil
-}
-
-func (this *RavenReceiver) endNewrelicTransaction(txn newrelic.Transaction) {
-	if txn == nil {
-		return
-	}
-	txn.End()
-}
-
-//Record heartbeat of consumer.
-func (this *RavenReceiver) recordHeartBeat(inflightCount int) {
-
-	if this.farm.newrelicApp == nil {
-		return
-	}
-	//Record Heart Beat
-	this.farm.newrelicApp.RecordCustomEvent(
-		fmt.Sprintf("Heartbeat-%s", this.id), map[string]interface{}{
-			"inflightcount": inflightCount,
-			"checkedAt":     time.Now(),
-			"queue":         this.source.GetName(),
-		},
-	)
-
-	this.getLogger().Info(this.source.GetName(), this.id, "HeartBeat",
-		fmt.Sprintf("In Flight Ravens: %d", inflightCount),
-	)
-}
-
-//get the logger object.
-func (this *RavenReceiver) getLogger() Logger {
-	return this.farm.logger
-}
-
-// Mark the Q as reliable.
-func (this *RavenReceiver) MarkReliable() *RavenReceiver {
-	this.options.isReliable = true
-	this.defineProcessingQ().defineDeadQ()
-	return this
-}
-
-// Mark the Q as ordered.
-func (this *RavenReceiver) MarkOrdered() *RavenReceiver {
-	this.options.ordering = true
-	return this
 }
 
 func (this *RavenReceiver) setSource(s Source) *RavenReceiver {
@@ -115,42 +50,136 @@ func (this *RavenReceiver) setId(id string) *RavenReceiver {
 	return this
 }
 
-func (this *RavenReceiver) defineProcessingQ() *RavenReceiver {
+func (this *RavenReceiver) MarkReliable() *RavenReceiver {
+	this.options.isReliable = true
 
-	qname := fmt.Sprintf("%s_processing_%s", this.source.GetRawName(), this.id)
-	this.processingQ = createQ(qname, this.source.GetBucket())
-	return this
-}
-
-func (this *RavenReceiver) defineDeadQ() *RavenReceiver {
-
-	qname := fmt.Sprintf("%s_dead", this.source.GetRawName())
-	this.deadQ = createQ(qname, this.source.GetBucket())
+	for _, receiver := range this.receivers {
+		receiver.MarkReliable()
+	}
 	return this
 }
 
 //@todo: implement all the necessary validations required for a receiver.
 func (this *RavenReceiver) validate() error {
 	//Check if Id, Source and farm are defined.
-	if this.id == "" {
-		return fmt.Errorf("An Id needs to be assigned to Receiver. Make sure its unique within source")
+	// if this.id == "" {
+	// 	return fmt.Errorf("An Id needs to be assigned to Receiver. Make sure its unique within source")
+	// }
+	// if this.source.IsEmpty() {
+	// 	return fmt.Errorf("Receiver Source cannot be Empty")
+	// }
+	// if this.farm == nil {
+	// 	return fmt.Errorf("You need to define to which farm this receiver belongs.")
+	// }
+	return nil
+}
+
+//
+// Raven Receiver / Message collector
+//
+type MsgBoxReceiver struct {
+	id string
+
+	//Source where to look for ravens.
+	msgbox MsgBox
+
+	//Options define characteristics of a receiver.
+	options struct {
+		//Specifies if we want to use reliable Q or not
+		//@todo: ordering is yet to be implemented.
+		isReliable, ordering bool
 	}
-	if this.source.IsEmpty() {
-		return fmt.Errorf("Receiver Source cannot be Empty")
-	}
-	if this.farm == nil {
-		return fmt.Errorf("You need to define to which farm this receiver belongs.")
+
+	//Q to store processing and dead messages.
+	// used only when marked reliable.
+	processingQ MsgBox
+	deadQ       MsgBox
+
+	// Farm to which receiver belongs.
+	parent *RavenReceiver
+}
+
+func (this MsgBoxReceiver) String() string {
+	return fmt.Sprintf("id: %s, source: %s , reliable: %v, processingQ: %s, deadQ: %s",
+		this.id, this.source.GetName(), this.options.isReliable, this.processingQ.GetName(),
+		this.deadQ.GetName(),
+	)
+}
+
+func (this *MsgBoxReceiver) getNewrelicTransaction() newrelic.Transaction {
+	if this.parent.farm.newrelicApp != nil {
+		return this.parent.farm.newrelicApp.StartTransaction(this.id, nil, nil)
 	}
 	return nil
 }
 
+func (this *MsgBoxReceiver) endNewrelicTransaction(txn newrelic.Transaction) {
+	if txn == nil {
+		return
+	}
+	txn.End()
+}
+
+//Record heartbeat of consumer.
+func (this *MsgBoxReceiver) recordHeartBeat(inflightCount int) {
+
+	if this.parent.farm.newrelicApp == nil {
+		return
+	}
+	//Record Heart Beat
+	this.parent.farm.newrelicApp.RecordCustomEvent(
+		fmt.Sprintf("Heartbeat-%s", this.id), map[string]interface{}{
+			"inflightcount": inflightCount,
+			"checkedAt":     time.Now(),
+			"queue":         this.msgbox.GetRawName(),
+			"box":           this.msgbox.GetBoxId(),
+		},
+	)
+
+	this.getLogger().Info(this.msgbox.GetName(), this.id, "HeartBeat",
+		fmt.Sprintf("In Flight Ravens: %d", inflightCount),
+	)
+}
+
+//get the logger object.
+func (this *MsgBoxReceiver) getLogger() Logger {
+	return this.parent.farm.logger
+}
+
+// Mark the Q as reliable.
+func (this *MsgBoxReceiver) MarkReliable() *MsgBoxReceiver {
+	this.options.isReliable = true
+	this.defineProcessingQ().defineDeadQ()
+	return this
+}
+
+// Mark the Q as ordered.
+func (this *MsgBoxReceiver) MarkOrdered() *MsgBoxReceiver {
+	this.options.ordering = true
+	return this
+}
+
+func (this *MsgBoxReceiver) defineProcessingQ() *MsgBoxReceiver {
+
+	qname := fmt.Sprintf("%s_processing", this.msgbox.GetRawName())
+	this.processingQ = createMsgBox(qname, this.msgbox.boxId)
+	return this
+}
+
+func (this *MsgBoxReceiver) defineDeadQ() *RavenReceiver {
+
+	qname := fmt.Sprintf("%s_dead", this.source.GetRawName())
+	this.deadQ = createQ(qname, this.source.GetBucket())
+	return this
+}
+
 // Get Messages published but not picked for processing.
-func (this *RavenReceiver) GetInFlightRavens() (int, error) {
+func (this *MsgBoxReceiver) GetInFlightRavens() (int, error) {
 	return this.farm.manager.InFlightMessages(*this)
 }
 
 // Start HeartBeat of Receiver.
-func (this *RavenReceiver) StartHeartBeat() error {
+func (this *MsgBoxReceiver) StartHeartBeat() error {
 
 	for {
 		func() {
@@ -175,7 +204,7 @@ func (this *RavenReceiver) StartHeartBeat() error {
 	}
 }
 
-func (this *RavenReceiver) Start(f func(m *Message, txn newrelic.Transaction) error) error {
+func (this *MsgBoxReceiver) Start(f func(m *Message, txn newrelic.Transaction) error) error {
 
 	//Start HeartBeat
 	go this.StartHeartBeat()
@@ -184,11 +213,11 @@ func (this *RavenReceiver) Start(f func(m *Message, txn newrelic.Transaction) er
 
 }
 
-func (this *RavenReceiver) StartServer() error {
+func (this *MsgBoxReceiver) StartServer() error {
 	return StartServer(this)
 }
 
-func (this *RavenReceiver) start(f func(m *Message, txn newrelic.Transaction) error) error {
+func (this *MsgBoxReceiver) start(f func(m *Message, txn newrelic.Transaction) error) error {
 
 	this.startedAt = time.Now()
 
