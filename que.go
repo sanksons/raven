@@ -101,6 +101,10 @@ type Source struct {
 	MsgBoxes []MsgBox
 }
 
+func (this *Source) GetName() string {
+	return this.Name
+}
+
 //
 // Exposed method for creation of new Destination.
 //

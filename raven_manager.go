@@ -11,36 +11,36 @@ var _ RavenManager = (*RedisCluster)(nil)
 type RavenManager interface {
 
 	// Tasks to be performed at consumer start.
-	PreStartup(r RavenReceiver) error
+	PreStartup(r MsgReceiver) error
 
 	// Message to be sent, Destination name
 	Send(message Message, destination Destination) error
 
 	// Source from which message is to be received.
 	// Q in which message is to be stored for temporary basis.
-	Receive(r RavenReceiver) (*Message, error)
+	Receive(r MsgReceiver) (*Message, error)
 
 	// Mark the supplied message as processed.
-	MarkProcessed(message *Message, r RavenReceiver) error
+	MarkProcessed(message *Message, r MsgReceiver) error
 
 	// Mark the supplied message as failed.
-	MarkFailed(message *Message, r RavenReceiver) error
+	MarkFailed(message *Message, r MsgReceiver) error
 
 	// Provides graceful shutdown of the receiver.
 	KillReceiver(r RavenReceiver) error
 
 	//Reque message.
-	RequeMessage(message Message, r RavenReceiver) error
+	RequeMessage(message Message, r MsgReceiver) error
 
 	//Show messages reciding in dead Q
-	ShowDeadQ(r RavenReceiver) ([]*Message, error)
+	ShowDeadQ(r MsgReceiver) ([]*Message, error)
 
 	//Flush DeadQ
-	FlushDeadQ(r RavenReceiver) error
+	FlushDeadQ(r MsgReceiver) error
 
 	//Flush All associated queues with a Receiver.
-	FlushAll(r RavenReceiver) error
+	FlushAll(r MsgReceiver) error
 
 	//Get InFlight Messages.
-	InFlightMessages(r RavenReceiver) (int, error)
+	InFlightMessages(r MsgReceiver) (int, error)
 }

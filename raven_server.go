@@ -6,6 +6,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func StartServer(receiver *RavenReceiver) error {
+
+	receiverHolder := &ReceiverHolder{receiver}
+	r := gin.Default()
+	//r.GET("/ping", receiverHolder.ping)
+	r.GET("/stats", receiverHolder.stats)
+	r.POST("/flushAll", receiverHolder.flushAll)
+	r.POST("/flushDead", receiverHolder.flushDeadQ)
+
+	r.Run(":5656")
+	return nil
+}
+
 type ReceiverHolder struct {
 	receiver *RavenReceiver
 }
@@ -65,17 +78,4 @@ func (this *ReceiverHolder) flushAll(c *gin.Context) {
 		"success": "OK",
 	}
 	c.JSON(200, data)
-}
-
-func StartServer(receiver *RavenReceiver) error {
-
-	receiverHolder := &ReceiverHolder{receiver}
-	r := gin.Default()
-	r.GET("/ping", receiverHolder.ping)
-	r.GET("/stats", receiverHolder.stats)
-	r.POST("/flushAll", receiverHolder.flushAll)
-	r.POST("/flushDead", receiverHolder.flushDeadQ)
-
-	r.Run(":5656")
-	return nil
 }
