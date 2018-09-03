@@ -9,7 +9,7 @@ import (
 	"github.com/sanksons/raven"
 )
 
-const DESTINATION = "product1"
+const DESTINATION = "productQ"
 const BUCKET = "1"
 
 func main() {

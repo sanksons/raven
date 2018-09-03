@@ -108,7 +108,7 @@ func (this *Source) GetName() string {
 //
 // Exposed method for creation of new Destination.
 //
-func CreateDestination(name string, boxes int, shardlogic func(Message, int) (string, error)) Destination {
+func CreateDestination(name string, boxes int, shardlogic ShardHandler) Destination {
 
 	if boxes < 1 {
 		boxes = 1
@@ -123,7 +123,7 @@ func CreateDestination(name string, boxes int, shardlogic func(Message, int) (st
 	}
 	//incase no shardlogic is provided use default.
 	if shardlogic == nil {
-		shardlogic = DefaultShardlogic
+		shardlogic = DefaultShardHandler
 	}
 
 	d := Destination{

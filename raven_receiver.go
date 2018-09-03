@@ -1,6 +1,9 @@
 package raven
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 //
 // Initiate a Raven Receiver.
@@ -11,7 +14,7 @@ func newRavenReceiver(id string, source Source) (*RavenReceiver, error) {
 	rr.setSource(source).setId("")
 
 	// Generate Message Receivers, for each message box
-	msgreceivers := make([]*MsgReceiver, len(source.MsgBoxes))
+	msgreceivers := make([]*MsgReceiver, 0, len(source.MsgBoxes))
 	for _, box := range source.MsgBoxes {
 		m := &MsgReceiver{
 			msgbox: box,
@@ -21,6 +24,7 @@ func newRavenReceiver(id string, source Source) (*RavenReceiver, error) {
 		m.setId(box.GetName())
 		msgreceivers = append(msgreceivers, m)
 	}
+	rr.msgReceivers = msgreceivers
 
 	return rr, nil
 }
@@ -94,20 +98,44 @@ func (this *RavenReceiver) validate() error {
 }
 
 func (this *RavenReceiver) Start(f MessageHandler) error {
+
+	if err := this.validate(); err != nil {
+		return err
+	}
+
 	// execute prestart hook of all receivers.
 	// once all prestart hooks are successfull start receivers.
 	for _, msgreceiver := range this.msgReceivers {
 		if err := msgreceiver.preStart(); err != nil {
 			return err
 		}
+		fmt.Println("box prestart")
 	}
 
 	//@todo: Start receivers.
 	// Since the start functions of receivers block, we need to start
 	// receivers as seperate goroutines.
+	// @todo: need to control these receivers from channels.
 	for _, msgreceiver := range this.msgReceivers {
 		go msgreceiver.start(f)
 	}
 
+	//Once all the receivers are up boot up the server.
+	StartServer(this)
 	return nil
+}
+
+func (this *RavenReceiver) GetInFlightRavens() map[string]string {
+	holder := make(map[string]string, len(this.msgReceivers))
+	for _, r := range this.msgReceivers {
+		var val string
+		cc, err := r.GetInFlightRavens()
+		if err != nil {
+			val = err.Error()
+		} else {
+			val = strconv.Itoa(cc)
+		}
+		holder[r.id] = val
+	}
+	return holder
 }

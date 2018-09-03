@@ -38,7 +38,7 @@ func failSafeExec(f func() error, maxtry int) error {
 //
 // A default message sharding logic to be used incase none is provided.
 //
-func DefaultShardlogic(m Message, boxes int) (string, error) {
+func DefaultShardHandler(m Message, boxes int) (string, error) {
 	slot := (crc16.Crc16([]byte(m.Id))) % uint16(boxes)
 	box := strconv.Itoa(int(slot + 1))
 	return box, nil
