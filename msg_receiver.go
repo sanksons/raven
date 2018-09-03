@@ -301,3 +301,11 @@ func (this *MsgReceiver) processMessage(msg *Message, f MessageHandler) error {
 	}()
 	return execerr
 }
+
+func (this *MsgReceiver) showDeadBox() ([]*Message, error) {
+	return this.parent.farm.manager.ShowDeadQ(*this)
+}
+
+func (this *MsgReceiver) flushDeadBox() error {
+	return this.parent.farm.manager.FlushDeadQ(*this)
+}

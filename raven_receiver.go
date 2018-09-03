@@ -139,3 +139,30 @@ func (this *RavenReceiver) GetInFlightRavens() map[string]string {
 	}
 	return holder
 }
+
+func (this *RavenReceiver) GetDeadBoxCount() map[string]string {
+	holder := make(map[string]string, 0)
+	for _, r := range this.msgReceivers {
+		var val string
+		msgs, err := r.showDeadBox()
+		if err != nil {
+			val = err.Error()
+		} else {
+			val = strconv.Itoa(len(msgs))
+		}
+		holder[r.id] = val
+	}
+	return holder
+}
+
+func (this *RavenReceiver) FlushDeadBox() map[string]string {
+	holder := make(map[string]string, 0)
+	for _, r := range this.msgReceivers {
+		var val string = "OK"
+		if err := r.flushDeadBox(); err != nil {
+			val = err.Error()
+		}
+		holder[r.id] = val
+	}
+	return holder
+}
