@@ -37,6 +37,10 @@ type RavenReceiver struct {
 	// Source from which receiver will fetch Ravens.
 	source Source
 
+	// If a PORT is specified raven will be locked to this port
+	// else an ephemeral port is picked.
+	port string
+
 	// Receiving options.
 	options struct {
 		//Specifies if we want to use reliable Q or not
@@ -49,6 +53,10 @@ type RavenReceiver struct {
 
 	// Access to Raven farm and underlying adapters.
 	farm *Farm
+}
+
+func (this *RavenReceiver) defineAccessPort(port string) {
+	this.port = port
 }
 
 func (this *RavenReceiver) setSource(s Source) *RavenReceiver {
@@ -109,7 +117,6 @@ func (this *RavenReceiver) Start(f MessageHandler) error {
 		if err := msgreceiver.preStart(); err != nil {
 			return err
 		}
-		fmt.Println("box prestart")
 	}
 
 	//@todo: Start receivers.

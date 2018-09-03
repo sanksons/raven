@@ -1,23 +1,49 @@
 package raven
 
 import (
+	"fmt"
+	"net"
+	"net/http"
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 )
 
 func StartServer(receiver *RavenReceiver) error {
 
-	receiverHolder := &ReceiverHolder{receiver}
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
-	r.GET("/stats", receiverHolder.stats)
-	//r.POST("/flushAll", receiverHolder.flushAll)
-	r.POST("/flushDead", receiverHolder.flushDeadQ)
 
-	r.Run(":5656")
-	return nil
+	receiverHolder := &ReceiverHolder{receiver, r}
+	//Define routes
+	receiverHolder.defineRoutes()
+
+	return receiverHolder.startListening()
 }
 
 type ReceiverHolder struct {
 	receiver *RavenReceiver
+	engine   *gin.Engine
+}
+
+func (this *ReceiverHolder) defineRoutes() {
+
+	this.engine.GET("/stats", this.stats)
+	//r.POST("/flushAll", receiverHolder.flushAll)
+	this.engine.POST("/flushDead", this.flushDeadQ)
+}
+
+func (this *ReceiverHolder) startListening() error {
+
+	if this.receiver.port != "" {
+		return this.engine.Run(fmt.Sprintf(":%s", this.receiver.port))
+	}
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return err
+	}
+	this.receiver.port = strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	return http.Serve(listener, this.engine)
 }
 
 func (this *ReceiverHolder) stats(c *gin.Context) {
