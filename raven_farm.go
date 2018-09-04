@@ -15,6 +15,10 @@ type Farm struct {
 	newrelicApp newrelic.Application
 }
 
+func (this *Farm) AttachNewRelicApp(app newrelic.Application) {
+	this.newrelicApp = app
+}
+
 //
 // Pick a Raven from Farm.
 //

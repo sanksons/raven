@@ -72,6 +72,10 @@ func (this *RavenReceiver) setId(id string) *RavenReceiver {
 	return this
 }
 
+func (this *RavenReceiver) GetId() string {
+	return this.id
+}
+
 //
 // Markall the allotted message receivers as reliable.
 //
