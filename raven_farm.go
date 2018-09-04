@@ -1,13 +1,22 @@
 package raven
 
+import (
+	"github.com/newrelic/go-agent"
+)
+
 //
 // Ravens are not like street dogs, they belong to a farm.
 // Each farm has a Raven manager, whose role is to contain implementation details of
 // each raven.
 //
 type Farm struct {
-	manager RavenManager
-	logger  Logger
+	manager     RavenManager
+	logger      Logger
+	newrelicApp newrelic.Application
+}
+
+func (this *Farm) AttachNewRelicApp(app newrelic.Application) {
+	this.newrelicApp = app
 }
 
 //
@@ -27,7 +36,7 @@ func (this *Farm) GetRaven() *Raven {
 
 //
 // This function returns a picker which can be used to pick messages sent via raven.
-// aka  Consumer Code
+// aka Consumer Code
 //
 func (this *Farm) GetRavenReceiver(id string, s Source) (*RavenReceiver, error) {
 

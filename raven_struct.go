@@ -40,15 +40,15 @@ func (this *Raven) SetDestination(d Destination) *Raven {
 // Send Message.
 //
 func (this *Raven) Fly() error {
-	//Its a waste of raven if mesasge is empty.
+	//Its a waste of raven if message is empty.
 	if this.message.isEmpty() {
 		return ErrNoMessage
 	}
 	// We dont want our raven to wander around world!!
-	if this.destination.IsEmpty() {
-		return ErrInvalidDestination
+	if err := this.destination.Validate(); err != nil {
+		return err
 	}
+	// Make it fly
 	this.message.mtime = time.Now()
 	return this.farm.manager.Send(this.message, this.destination)
-	//return nil
 }

@@ -2,67 +2,61 @@ package raven
 
 import (
 	"fmt"
-	"time"
+	"strconv"
 )
 
+//
 // Initiate a Raven Receiver.
+//
 func newRavenReceiver(id string, source Source) (*RavenReceiver, error) {
 	rr := new(RavenReceiver)
+	//Define source and Id for receiver.
+	rr.setSource(source).setId("")
 
-	rr.setSource(source).setId(id)
+	// Generate Message Receivers, for each message box
+	msgreceivers := make([]*MsgReceiver, 0, len(source.MsgBoxes))
+	for _, box := range source.MsgBoxes {
+		m := &MsgReceiver{
+			msgbox: box,
+			parent: rr,
+		}
+		// Set Id for msgReceiver.
+		m.setId(box.GetName())
+		msgreceivers = append(msgreceivers, m)
+	}
+	rr.msgReceivers = msgreceivers
+
 	return rr, nil
 }
 
-//
-// Raven Receiver / Message collector
-//
 type RavenReceiver struct {
-	//Id assigned to this receiver.
-	//Will be helpful to keep this unique across receivers.
+
+	//A Unique Id that distinguishes this Receiver from other receivers.
 	id string
 
-	//Source where to look for ravens.
+	// Source from which receiver will fetch Ravens.
 	source Source
 
-	//Options define characteristics of a receiver.
+	// If a PORT is specified raven will be locked to this port
+	// else an ephemeral port is picked.
+	port string
+
+	// Receiving options.
 	options struct {
 		//Specifies if we want to use reliable Q or not
 		//@todo: ordering is yet to be implemented.
 		isReliable, ordering bool
 	}
 
-	//Q to store processing and dead messages.
-	// used only when marked reliable.
-	processingQ Q
-	deadQ       Q
+	//All the child receivers.
+	msgReceivers []*MsgReceiver
 
-	// Farm to which reveiver belongs.
+	// Access to Raven farm and underlying adapters.
 	farm *Farm
 }
 
-func (this RavenReceiver) String() string {
-	return fmt.Sprintf("id: %s, source: %s , reliable: %v, processingQ: %s, deadQ: %s",
-		this.id, this.source.GetName(), this.options.isReliable, this.processingQ.GetName(),
-		this.deadQ.GetName(),
-	)
-}
-
-//get the logger object.
-func (this *RavenReceiver) getLogger() Logger {
-	return this.farm.logger
-}
-
-// Mark the Q as reliable.
-func (this *RavenReceiver) MarkReliable() *RavenReceiver {
-	this.options.isReliable = true
-	this.defineProcessingQ().defineDeadQ()
-	return this
-}
-
-// Mark the Q as ordered.
-func (this *RavenReceiver) MarkOrdered() *RavenReceiver {
-	this.options.ordering = true
-	return this
+func (this *RavenReceiver) defineAccessPort(port string) {
+	this.port = port
 }
 
 func (this *RavenReceiver) setSource(s Source) *RavenReceiver {
@@ -71,119 +65,121 @@ func (this *RavenReceiver) setSource(s Source) *RavenReceiver {
 }
 
 func (this *RavenReceiver) setId(id string) *RavenReceiver {
-	this.id = id
+	// Make sure we are setting source before Id.
+	// Since a Source can have only one receiver at a time, it makes perfect sense to allot
+	// source name as ID.
+	this.id = this.source.GetName()
 	return this
 }
 
-func (this *RavenReceiver) defineProcessingQ() *RavenReceiver {
-
-	qname := fmt.Sprintf("%s_processing_%s", this.source.GetRawName(), this.id)
-	this.processingQ = createQ(qname, this.source.GetBucket())
-	return this
+func (this *RavenReceiver) GetId() string {
+	return this.id
 }
 
-func (this *RavenReceiver) defineDeadQ() *RavenReceiver {
+//
+// Markall the allotted message receivers as reliable.
+//
+func (this *RavenReceiver) MarkReliable() *RavenReceiver {
+	this.options.isReliable = true
 
-	qname := fmt.Sprintf("%s_dead", this.source.GetRawName())
-	this.deadQ = createQ(qname, this.source.GetBucket())
+	for _, msgReceiver := range this.msgReceivers {
+		msgReceiver.MarkReliable()
+	}
 	return this
 }
 
 //@todo: implement all the necessary validations required for a receiver.
 func (this *RavenReceiver) validate() error {
+
 	//Check if Id, Source and farm are defined.
+	// check if atleast one receiver is assigned.
+
 	if this.id == "" {
 		return fmt.Errorf("An Id needs to be assigned to Receiver. Make sure its unique within source")
 	}
-	if this.source.IsEmpty() {
+	if this.source.GetName() == "" {
 		return fmt.Errorf("Receiver Source cannot be Empty")
 	}
 	if this.farm == nil {
 		return fmt.Errorf("You need to define to which farm this receiver belongs.")
 	}
+	if len(this.msgReceivers) <= 0 {
+		return fmt.Errorf("Atleast one msg Receiver needs to be assigned")
+	}
 	return nil
 }
 
-func (this *RavenReceiver) GetInFlightRavens() (int, error) {
-	return 0, fmt.Errorf("To be impl")
-}
+func (this *RavenReceiver) Start(f MessageHandler) error {
 
-func (this *RavenReceiver) Start(f func(m *Message) error) error {
-
-	this.getLogger().Info(this.source.GetName(), this.id,
-		fmt.Sprintf("Starting Raven receiver with config, %s", this),
-	)
-	if verr := this.validate(); verr != nil {
-		return verr
-	}
-	receiver := *this
-	//startup con
-	if err := this.farm.manager.PreStartup(receiver); err != nil {
+	if err := this.validate(); err != nil {
 		return err
 	}
 
-	// this blocks
-	for {
-		//this blocks, so no need for wait on empty Q.
-		msg, err := this.farm.manager.Receive(receiver)
-		if err != nil && err == ErrEmptyQueue {
-			//Q is empty, Simply recheck.
-			this.getLogger().Info(this.source.GetName(), this.id, "Queue is empty recheck")
-			continue
+	//@todo: handle locking mechanism here to ensure only one receiver for a destination
+	// runs at any time.
+
+	// execute prestart hook of all receivers.
+	// once all prestart hooks are successfull start receivers.
+	for _, msgreceiver := range this.msgReceivers {
+		if err := msgreceiver.preStart(); err != nil {
+			return err
 		}
-		// Something went wrong.
-		if err != nil {
-			//add a wait here.
-			//log error
-			this.getLogger().Error(this.source.GetName(), this.id, fmt.Sprintf("Got Error while receiving. Error:%s",
-				err.Error()),
-			)
-
-			this.getLogger().Info(this.source.GetName(), this.id, "Waiting for 5 seconds before retrying.")
-			time.Sleep(5 * time.Second)
-			continue
-		}
-
-		this.getLogger().Info(this.source.GetName(), this.id, fmt.Sprintf("Received Message: %s",
-			msg),
-		)
-
-		execerr := f(msg) //process message
-
-		if execerr == nil {
-			//free up message from processing Q
-			err := this.farm.manager.MarkProcessed(msg, receiver)
-			if err != nil {
-				this.getLogger().Error(
-					this.source.GetName(), this.id,
-					fmt.Sprintf("Could Not mark message as processed. Message : %s", msg),
-				)
-			}
-		} else if execerr == ErrTmpFailure {
-			this.getLogger().Info(
-				this.source.GetName(), this.id,
-				fmt.Sprintf("Got temporary error while processing message [%s], requeing it", msg),
-			)
-			err := this.farm.manager.RequeMessage(*msg, receiver)
-			if err != nil {
-				this.getLogger().Error(
-					this.source.GetName(), this.id,
-					fmt.Sprintf("Could Not Reque message. Message : %s", msg),
-				)
-			}
-			//sleep till 5 seconds, before repulling message.
-			time.Sleep(5 * time.Second)
-
-		} else {
-			//store in DeadQ
-			err := this.farm.manager.MarkFailed(msg, receiver)
-			if err != nil {
-				this.getLogger().Error(
-					this.source.GetName(), this.id,
-					fmt.Sprintf("Could Not mark message as dead. Message : %s", msg),
-				)
-			}
-		}
-
 	}
+
+	//@todo: Start receivers.
+	// Since the start functions of receivers block, we need to start
+	// receivers as seperate goroutines.
+	// @todo: need to control these receivers from channels.
+	for _, msgreceiver := range this.msgReceivers {
+		go msgreceiver.start(f)
+	}
+
+	//Once all the receivers are up boot up the server.
+	StartServer(this)
+	return nil
+}
+
+//
+// Get all the ravens still wandering around.
+//
+func (this *RavenReceiver) GetInFlightRavens() map[string]string {
+	holder := make(map[string]string, len(this.msgReceivers))
+	for _, r := range this.msgReceivers {
+		var val string
+		cc, err := r.GetInFlightRavens()
+		if err != nil {
+			val = err.Error()
+		} else {
+			val = strconv.Itoa(cc)
+		}
+		holder[r.id] = val
+	}
+	return holder
+}
+
+func (this *RavenReceiver) GetDeadBoxCount() map[string]string {
+	holder := make(map[string]string, 0)
+	for _, r := range this.msgReceivers {
+		var val string
+		msgs, err := r.showDeadBox()
+		if err != nil {
+			val = err.Error()
+		} else {
+			val = strconv.Itoa(len(msgs))
+		}
+		holder[r.id] = val
+	}
+	return holder
+}
+
+func (this *RavenReceiver) FlushDeadBox() map[string]string {
+	holder := make(map[string]string, 0)
+	for _, r := range this.msgReceivers {
+		var val string = "OK"
+		if err := r.flushDeadBox(); err != nil {
+			val = err.Error()
+		}
+		holder[r.id] = val
+	}
+	return holder
 }

@@ -3,17 +3,21 @@ package raven
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
 
+//
+// If no Explicit type for a message is given this is used.
+//
 const DEFAULT_MSG_TYPE = "DEF"
 
 //
 // Prepare message based on the specified details.
 //
-func PrepareMessage(id string, mtype string, data string) Message {
+func PrepareMessage(id string, mtype string, data string, shardKey string) Message {
 
 	if mtype == "" {
 		mtype = DEFAULT_MSG_TYPE
@@ -22,10 +26,14 @@ func PrepareMessage(id string, mtype string, data string) Message {
 		uid, _ := uuid.NewUUID()
 		id = uid.String()
 	}
+	if shardKey == "" {
+		shardKey = id
+	}
 	return Message{
-		Id:   id,
-		Data: data,
-		Type: mtype,
+		Id:       id,
+		ShardKey: shardKey,
+		Data:     data,
+		Type:     mtype,
 	}
 }
 
@@ -33,13 +41,18 @@ func PrepareMessage(id string, mtype string, data string) Message {
 // The message that is sent and retrieved.
 // @todo: need to check if we can avoid json encoding and decoding.
 type Message struct {
-	Id   string
+	//Possibly Unique Id for the message.
+	Id string
+
+	//Type of the message
 	Type string
+
+	//Content of the message
 	Data string
 
-	//Need to check if we need a counter here or time is sufficient.??
-	//Done we definitely need a counter, else multiserver will fail.
-	//Counter int
+	//used to decide correct message box for the message.
+	ShardKey string
+
 	mtime time.Time
 }
 
@@ -68,4 +81,8 @@ func (this *Message) isEmpty() bool {
 		return true
 	}
 	return false
+}
+
+func (this *Message) getShardKey() string {
+	return strings.ToLower(this.ShardKey)
 }

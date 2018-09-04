@@ -9,7 +9,7 @@ import (
 	"github.com/sanksons/raven"
 )
 
-const DESTINATION = "product1"
+const DESTINATION = "productQ"
 const BUCKET = "1"
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var destination raven.Destination = raven.CreateDestination(DESTINATION, BUCKET)
+	var destination raven.Destination = raven.CreateDestination(DESTINATION, 2, nil)
 
 	var counter int
 	for {
@@ -41,6 +41,12 @@ func main() {
 			strconv.Itoa(counter), "", fmt.Sprintf("Hello %d!!", counter))
 
 		fmt.Printf("Publishing message [%+v]\n", mess)
+
+		box, err := destination.GetBox4Msg(mess)
+		if err != nil {
+			log.Fatal("sdsdsdsd")
+		}
+		fmt.Println(box.GetName())
 
 		//Pick a Raven from farm
 		flyerr := farm.GetRaven().

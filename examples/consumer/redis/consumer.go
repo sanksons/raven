@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/newrelic/go-agent"
+
 	"github.com/sanksons/raven"
 )
 
-const SOURCE = "product1"
+const SOURCE = "productQ"
 const BUCKET = "1"
 
 func main() {
@@ -16,6 +18,7 @@ func main() {
 	// Initialize raven farm.
 	//
 	loggerStrict := new(raven.FmtLogger)
+	loggerStrict.Level = 10
 
 	farm, err := raven.InitializeFarm(raven.FARM_TYPE_REDIS, raven.RedisSimpleConfig{
 		Addr:     "localhost:6379",
@@ -28,7 +31,7 @@ func main() {
 	}
 
 	// Define a source from which to receive.
-	var source raven.Source = raven.CreateSource(SOURCE, BUCKET)
+	var source raven.Source = raven.CreateSource(SOURCE, 2)
 
 	// Initiate and pick a receiver.
 	receiver, err := farm.GetRavenReceiver("one", source)
@@ -37,14 +40,17 @@ func main() {
 	}
 
 	// Mark as Reliable and Ordered.
-	//receiver.MarkReliable().MarkOrdered()
+	receiver.MarkReliable()
 
 	//start receiving
-	receiver.Start(c)
+	err1 := receiver.Start(c)
+	if err1 != nil {
+		log.Fatal(err1)
+	}
 }
 
-func c(message *raven.Message) error {
-
+func c(message *raven.Message, txn newrelic.Transaction) error {
+	//time.Sleep(1 * time.Minute)
 	fmt.Printf("Got message: %s\n", message)
 	return nil
 }

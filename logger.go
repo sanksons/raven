@@ -68,11 +68,11 @@ func (this FmtLogger) Debug(v ...interface{}) {
 
 	strArr := make([]string, 0, len(v))
 	for _, m := range v {
-		strArr = append(strArr, fmt.Sprintf("[%v]", m))
+		strArr = append(strArr, fmt.Sprintf("%+v", m))
 	}
 
-	fmt.Printf("%s [DBG] %s\n",
-		time.Now().Format(time.StampMilli), strings.Join(strArr, " "))
+	fmt.Printf("%s\t[DBG]\t%s\n",
+		time.Now().Format(time.RFC3339), strings.Join(strArr, " "))
 	return
 }
 
@@ -84,11 +84,11 @@ func (this FmtLogger) Info(v ...interface{}) {
 
 	strArr := make([]string, 0, len(v))
 	for _, m := range v {
-		strArr = append(strArr, fmt.Sprintf("[%v]", m))
+		strArr = append(strArr, fmt.Sprintf("%v", m))
 	}
 
-	fmt.Printf("%s [INF] %s\n",
-		time.Now().Format(time.StampMilli), strings.Join(strArr, " "))
+	fmt.Printf("%s\t[INF]\t%s\n",
+		time.Now().Format(time.RFC3339), strings.Join(strArr, " "))
 	return
 }
 
@@ -103,8 +103,8 @@ func (this FmtLogger) Warning(v ...interface{}) {
 		strArr = append(strArr, fmt.Sprintf("[%v]", m))
 	}
 
-	fmt.Printf("%s [WRN] %s\n",
-		time.Now().Format(time.StampMilli), strings.Join(strArr, " "))
+	fmt.Printf("%s\t[WRN]\t%s\n",
+		time.Now().Format(time.RFC3339), strings.Join(strArr, " "))
 	return
 }
 
@@ -116,11 +116,11 @@ func (this FmtLogger) Error(v ...interface{}) {
 
 	strArr := make([]string, 0, len(v))
 	for _, m := range v {
-		strArr = append(strArr, fmt.Sprintf("[%v]", m))
+		strArr = append(strArr, fmt.Sprintf("%v", m))
 	}
 
-	fmt.Printf("%s [ERR] %s\n",
-		time.Now().Format(time.StampMilli), strings.Join(strArr, " "))
+	fmt.Printf("%s\t[ERR]\t%s\n",
+		time.Now().Format(time.RFC3339), strings.Join(strArr, " "))
 	return
 }
 
@@ -133,8 +133,8 @@ func (this FmtLogger) Fatal(v ...interface{}) {
 		strArr = append(strArr, fmt.Sprintf("[%v]", m))
 	}
 
-	fmt.Printf("%s [FAL] %s\n",
-		time.Now().Format(time.StampMilli), strings.Join(strArr, " "))
+	fmt.Printf("%s\t[FAL]\t%s\n",
+		time.Now().Format(time.RFC3339), strings.Join(strArr, " "))
 
 	return
 }

@@ -4,6 +4,12 @@
 
 package raven
 
+import (
+	"strconv"
+
+	crc16 "github.com/joaojeronimo/go-crc16"
+)
+
 //
 //  Execute a func with retry on error.
 //
@@ -27,4 +33,13 @@ func failSafeExec(f func() error, maxtry int) error {
 		return err
 	}
 	return nil
+}
+
+//
+// A default message sharding logic to be used incase none is provided.
+//
+func DefaultShardHandler(m Message, boxes int) (string, error) {
+	slot := (crc16.Crc16([]byte(m.getShardKey()))) % uint16(boxes)
+	box := strconv.Itoa(int(slot + 1))
+	return box, nil
 }
