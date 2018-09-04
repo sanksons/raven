@@ -6,15 +6,16 @@ import (
 	"strings"
 )
 
-// createQ based on the supplied name and bucket.
-func createQ(name string, bucket string) Q {
-	return Q{name: name, bucket: bucket}
-}
-
+//
+// Wrapper to create a messageBox.
+//
 func createMsgBox(name string, bucket string) MsgBox {
 	return MsgBox{name: name, boxId: bucket}
 }
 
+//
+// A messageBox is a virtual repreasentation of a Queue.
+//
 type MsgBox struct {
 	//Name of the Queue
 	name string
@@ -36,40 +37,6 @@ func (this *MsgBox) GetRawName() string {
 
 func (this *MsgBox) GetBoxId() string {
 	return strings.ToLower(this.boxId)
-}
-
-//
-// A type for each Q.
-//
-type Q struct {
-	//Name of the Queue
-	name string
-
-	//Bucket to which queue belongs.
-	bucket string
-}
-
-//Check if Q is empty.
-func (this *Q) IsEmpty() bool {
-	if this.name == "" {
-		return true
-	}
-	return false
-}
-
-func (this *Q) GetName() string {
-	if this.name == "" {
-		return ""
-	}
-	return strings.ToLower(this.name) + "-{" + strings.ToLower(this.bucket) + "}"
-}
-
-func (this *Q) GetRawName() string {
-	return this.name
-}
-
-func (this *Q) GetBucket() string {
-	return strings.ToLower(this.bucket)
 }
 
 //
@@ -95,6 +62,8 @@ func CreateSource(name string, boxes int) Source {
 
 //
 // Specifies the Queue Name from which messages needs to be retrieved.
+//
+// Note: Source is used while message consumption.
 //
 type Source struct {
 	Name     string
@@ -135,7 +104,10 @@ func CreateDestination(name string, boxes int, shardlogic ShardHandler) Destinat
 }
 
 //
-// Destination specifies the Queue name to which the message needs to be sent.
+// Destination specifies the location to which the message needs to be sent.
+// A destination can contains multiple messageBoxes. Where each message box has its own receiver.
+//
+// Note: Destination is used while message publication.
 //
 type Destination struct {
 	Name       string
@@ -143,10 +115,16 @@ type Destination struct {
 	shardLogic func(Message, int) (string, error)
 }
 
+//
+// Get all the message boxes allocated to this destination.
+//
 func (this *Destination) GetAllBoxes() ([]MsgBox, error) {
 	return this.MsgBoxes, nil
 }
 
+//
+// Decide correct MsgBox for the message based on the assigned ShardKey.
+//
 func (this *Destination) GetBox4Msg(m Message) (*MsgBox, error) {
 	boxId, err := this.shardLogic(m, len(this.MsgBoxes))
 	if err != nil {
@@ -160,8 +138,16 @@ func (this *Destination) GetBox4Msg(m Message) (*MsgBox, error) {
 	return nil, fmt.Errorf("Shard Logic Seems to be Incorrect, Msg Box with Id [%s] does not exists", boxId)
 }
 
-//@todo: check if its a valid destination.
-// and a lot more
 func (this *Destination) Validate() error {
+	//check if name is not empty
+	if this.Name == "" {
+		return fmt.Errorf("Destination name cannot be empty")
+	}
+	if len(this.MsgBoxes) <= 0 {
+		return fmt.Errorf("Destination does not have any msgbox")
+	}
+	if this.shardLogic == nil {
+		return fmt.Errorf("Shard Logic for destination is empty")
+	}
 	return nil
 }

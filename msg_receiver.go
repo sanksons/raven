@@ -187,19 +187,14 @@ func (this *MsgReceiver) preStart() error {
 
 }
 
-// func (this *MsgReceiver) Start(f func(m *Message, txn newrelic.Transaction) error) error {
-
-// 	//Start HeartBeat
-// 	//	go this.StartHeartBeat()
-
-// 	return this.start(MessageHandler(f))
-
-// }
-
 func (this *MsgReceiver) start(f MessageHandler) {
 
 	this.log("info", fmt.Sprintf("Starting Raven receiver with config, %s", this))
 	receiver := *this
+
+	// Wait for a while before starting. this will help incases where webserver
+	// initialization failed avoiding any message to get stuck.
+	time.Sleep(30 * time.Second)
 
 	// this blocks
 	for {

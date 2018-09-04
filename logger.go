@@ -133,7 +133,7 @@ func (this FmtLogger) Fatal(v ...interface{}) {
 		strArr = append(strArr, fmt.Sprintf("[%v]", m))
 	}
 
-	fmt.Printf("%s [FAL] %s\n",
+	fmt.Printf("%s\t[FAL]\t%s\n",
 		time.Now().Format(time.RFC3339), strings.Join(strArr, " "))
 
 	return

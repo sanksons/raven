@@ -111,6 +111,9 @@ func (this *RavenReceiver) Start(f MessageHandler) error {
 		return err
 	}
 
+	//@todo: handle locking mechanism here to ensure only one receiver for a destination
+	// runs at any time.
+
 	// execute prestart hook of all receivers.
 	// once all prestart hooks are successfull start receivers.
 	for _, msgreceiver := range this.msgReceivers {
@@ -132,6 +135,9 @@ func (this *RavenReceiver) Start(f MessageHandler) error {
 	return nil
 }
 
+//
+// Get all the ravens still wandering around.
+//
 func (this *RavenReceiver) GetInFlightRavens() map[string]string {
 	holder := make(map[string]string, len(this.msgReceivers))
 	for _, r := range this.msgReceivers {
