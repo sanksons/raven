@@ -43,6 +43,7 @@ func (this *ReceiverHolder) startListening() error {
 		return err
 	}
 	this.receiver.port = strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	this.receiver.ShowMessage()
 	return http.Serve(listener, this.engine)
 }
 

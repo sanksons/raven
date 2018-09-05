@@ -76,6 +76,10 @@ func (this *RavenReceiver) GetId() string {
 	return this.id
 }
 
+func (this *RavenReceiver) GetPort() string {
+	return this.port
+}
+
 //
 // Markall the allotted message receivers as reliable.
 //
@@ -135,7 +139,9 @@ func (this *RavenReceiver) Start(f MessageHandler) error {
 	}
 
 	//Once all the receivers are up boot up the server.
-	StartServer(this)
+	if err := StartServer(this); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -182,4 +188,17 @@ func (this *RavenReceiver) FlushDeadBox() map[string]string {
 		holder[r.id] = val
 	}
 	return holder
+}
+
+func (this *RavenReceiver) ShowMessage() {
+	fmt.Println("\n\n--------------------------------------------")
+	fmt.Printf("Following MessageReceivers Started:\n")
+	fmt.Println("\nReceiverId\tIsReliable")
+	for _, r := range this.msgReceivers {
+		fmt.Printf("- %s\t%t", r.id, r.options.isReliable)
+		fmt.Println()
+	}
+	fmt.Println("--------------------------------------------")
+	fmt.Printf("\nConsumer Communication Port: %s\n", this.GetPort())
+	return
 }
