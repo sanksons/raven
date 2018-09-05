@@ -255,8 +255,16 @@ func (this *redisbase) FlushDeadQ(receiver MsgReceiver) error {
 }
 
 func (this *redisbase) InFlightMessages(receiver MsgReceiver) (int, error) {
-
 	dat := this.Client.LLen(receiver.msgbox.GetName())
+	v, err := dat.Result()
+	if err != nil {
+		return 0, err
+	}
+	return int(v), nil
+}
+
+func (this *redisbase) GetDeadQCount(r MsgReceiver) (int, error) {
+	dat := this.Client.LLen(r.deadBox.GetName())
 	v, err := dat.Result()
 	if err != nil {
 		return 0, err

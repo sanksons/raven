@@ -135,6 +135,7 @@ func (this *RavenReceiver) Start(f MessageHandler) error {
 	// receivers as seperate goroutines.
 	// @todo: need to control these receivers from channels.
 	for _, msgreceiver := range this.msgReceivers {
+		go msgreceiver.StartHeartBeat()
 		go msgreceiver.start(f)
 	}
 

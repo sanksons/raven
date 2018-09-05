@@ -35,6 +35,9 @@ type RavenManager interface {
 	//Show messages reciding in dead Q
 	ShowDeadQ(r MsgReceiver) ([]*Message, error)
 
+	//Get messages residing in DeadQ.
+	GetDeadQCount(r MsgReceiver) (int, error)
+
 	//Flush DeadQ
 	FlushDeadQ(r MsgReceiver) error
 
