@@ -194,9 +194,9 @@ func (this *RavenReceiver) FlushDeadBox() map[string]string {
 func (this *RavenReceiver) ShowMessage() {
 	fmt.Println("\n\n--------------------------------------------")
 	fmt.Printf("Following MessageReceivers Started:\n")
-	fmt.Println("\nReceiverId\tIsReliable")
+	fmt.Println("\nReceiverId\tIsReliable\tProcBox\tDeadBox")
 	for _, r := range this.msgReceivers {
-		fmt.Printf("- %s\t%t", r.id, r.options.isReliable)
+		fmt.Printf("- %s\t%t\t%s\t%s", r.id, r.options.isReliable, r.procBox.GetName(), r.deadBox.GetName())
 		fmt.Println()
 	}
 	fmt.Println("--------------------------------------------")
