@@ -168,11 +168,11 @@ func (this *RavenReceiver) GetDeadBoxCount() map[string]string {
 	holder := make(map[string]string, 0)
 	for _, r := range this.msgReceivers {
 		var val string
-		msgs, err := r.showDeadBox()
+		cc, err := r.GetDeadBoxCount()
 		if err != nil {
 			val = err.Error()
 		} else {
-			val = strconv.Itoa(len(msgs))
+			val = strconv.Itoa(cc)
 		}
 		holder[r.id] = val
 	}
