@@ -30,6 +30,8 @@ func (this *ReceiverHolder) defineRoutes() {
 
 	this.engine.GET("/stats", this.stats)
 	//r.POST("/flushAll", receiverHolder.flushAll)
+	//kill receiver/restart
+	//show dead messages.
 	this.engine.POST("/flushDead", this.flushDeadQ)
 }
 
