@@ -30,6 +30,8 @@ func (this *ReceiverHolder) defineRoutes() {
 
 	this.engine.GET("/stats", this.stats)
 	//r.POST("/flushAll", receiverHolder.flushAll)
+	//kill receiver/restart
+	//show dead messages.
 	this.engine.POST("/flushDead", this.flushDeadQ)
 }
 
@@ -43,6 +45,7 @@ func (this *ReceiverHolder) startListening() error {
 		return err
 	}
 	this.receiver.port = strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	this.receiver.ShowMessage()
 	return http.Serve(listener, this.engine)
 }
 

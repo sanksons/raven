@@ -81,18 +81,19 @@ func (this *MsgReceiver) endNewrelicTransaction(txn newrelic.Transaction) {
 }
 
 //Record heartbeat of consumer.
-func (this *MsgReceiver) recordHeartBeat(inflightCount int) {
+func (this *MsgReceiver) recordHeartBeat(inflightCount int, deadCount int) {
 
 	if this.parent.farm.newrelicApp == nil {
 		return
 	}
 	//Record Heart Beat
 	this.parent.farm.newrelicApp.RecordCustomEvent(
-		fmt.Sprintf("Heartbeat-%s", this.id), map[string]interface{}{
+		fmt.Sprintf("Heartbeat_%s", this.id), map[string]interface{}{
 			"inflightcount": inflightCount,
 			"checkedAt":     time.Now(),
 			"queue":         this.msgbox.GetRawName(),
 			"box":           this.msgbox.GetBoxId(),
+			"deadCount":     deadCount,
 		},
 	)
 
@@ -139,15 +140,15 @@ func (this *MsgReceiver) GetInFlightRavens() (int, error) {
 }
 
 // Start HeartBeat of Receiver.
-func (this *MsgReceiver) StartHeartBeat() error {
+func (this *MsgReceiver) StartHeartBeat() {
 
 	for {
 		func() {
 			// Incase of panic, restart for loop.
-			defer util.PanicHandler("HeartBeat")
+			defer util.PanicHandler(fmt.Sprintf("HeartBeat: %s", this.id))
 
 			// Pulse rate
-			time.Sleep(10 * time.Second)
+			time.Sleep(30 * time.Second)
 
 			cc, err := this.GetInFlightRavens()
 			if err != nil {
@@ -156,9 +157,15 @@ func (this *MsgReceiver) StartHeartBeat() error {
 				)
 				return
 			}
-
+			dc, err := this.GetDeadBoxCount()
+			if err != nil {
+				this.getLogger().Error(this.msgbox.GetName(), this.id, "HeartBeat",
+					fmt.Sprintf("Error: %s", err.Error()),
+				)
+				return
+			}
 			//Check if we can record health.
-			this.recordHeartBeat(cc)
+			this.recordHeartBeat(cc, dc)
 
 		}()
 	}
@@ -259,14 +266,23 @@ func (this *MsgReceiver) start(f MessageHandler) {
 	}
 }
 
+//
+// Mark Message as processed.
+//
 func (this *MsgReceiver) markProcessed(msg *Message) error {
 	return this.parent.farm.manager.MarkProcessed(msg, *this)
 }
 
+//
+// Requeue message incase of tmp error.
+//
 func (this *MsgReceiver) requeueMessage(msg Message) error {
 	return this.parent.farm.manager.RequeMessage(msg, *this)
 }
 
+//
+// Mark message as failed.
+//
 func (this *MsgReceiver) markFailed(msg *Message) error {
 	return this.parent.farm.manager.MarkFailed(msg, *this)
 }
@@ -301,6 +317,16 @@ func (this *MsgReceiver) showDeadBox() ([]*Message, error) {
 	return this.parent.farm.manager.ShowDeadQ(*this)
 }
 
+//
+// Get Count of messages residing in dead box.
+//
+func (this *MsgReceiver) GetDeadBoxCount() (int, error) {
+	return this.parent.farm.manager.GetDeadQCount(*this)
+}
+
+//
+// Flush Dead Box
+//
 func (this *MsgReceiver) flushDeadBox() error {
 	return this.parent.farm.manager.FlushDeadQ(*this)
 }

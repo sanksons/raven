@@ -28,7 +28,7 @@ func (this *MsgBox) GetName() string {
 	if this.name == "" {
 		return ""
 	}
-	return strings.ToLower(this.name) + "-{" + strings.ToLower(this.boxId) + "}"
+	return this.name + "-{" + strings.ToLower(this.boxId) + "}"
 }
 
 func (this *MsgBox) GetRawName() string {
