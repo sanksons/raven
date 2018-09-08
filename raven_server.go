@@ -11,6 +11,7 @@ import (
 
 func StartServer(receiver *RavenReceiver) error {
 
+	fmt.Println("Starting Server ...")
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
@@ -28,6 +29,8 @@ type ReceiverHolder struct {
 
 func (this *ReceiverHolder) defineRoutes() {
 
+	this.engine.GET("/", this.ping)
+	this.engine.GET("/ping", this.ping)
 	this.engine.GET("/stats", this.stats)
 	//r.POST("/flushAll", receiverHolder.flushAll)
 	//kill receiver/restart
@@ -37,10 +40,11 @@ func (this *ReceiverHolder) defineRoutes() {
 
 func (this *ReceiverHolder) startListening() error {
 
+	var port string = "0"
 	if this.receiver.port != "" {
-		return this.engine.Run(fmt.Sprintf(":%s", this.receiver.port))
+		port = this.receiver.port
 	}
-	listener, err := net.Listen("tcp", ":0")
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
 		return err
 	}
@@ -74,6 +78,10 @@ func (this *ReceiverHolder) flushDeadQ(c *gin.Context) {
 	responsedata := this.receiver.FlushDeadBox()
 	data := responsedata
 	c.JSON(200, data)
+}
+
+func (this *ReceiverHolder) ping(c *gin.Context) {
+	c.JSON(200, "OK")
 }
 
 // func (this *ReceiverHolder) flushAll(c *gin.Context) {

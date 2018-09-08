@@ -10,7 +10,7 @@ import (
 )
 
 const SOURCE = "productQ"
-const BUCKET = "1"
+const BUCKETS = 2
 
 func main() {
 
@@ -31,16 +31,17 @@ func main() {
 	}
 
 	// Define a source from which to receive.
-	var source raven.Source = raven.CreateSource(SOURCE, 2)
+	var source raven.Source = raven.CreateSource(SOURCE, BUCKETS)
 
 	// Initiate and pick a receiver.
-	receiver, err := farm.GetRavenReceiver("one", source)
+	receiver, err := farm.GetRavenReceiver("", source)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Mark as Reliable and Ordered.
 	receiver.MarkReliable()
+	receiver.SetPort("9001")
 
 	//start receiving
 	err1 := receiver.Start(c)
