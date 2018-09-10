@@ -2,7 +2,9 @@ package raven
 
 import (
 	"fmt"
+	"os"
 	"strconv"
+	"text/tabwriter"
 )
 
 //
@@ -78,6 +80,14 @@ func (this *RavenReceiver) GetId() string {
 
 func (this *RavenReceiver) GetPort() string {
 	return this.port
+}
+
+//
+// Not mandatory, but if specified receiver will use the specified port for
+// communications.
+//
+func (this *RavenReceiver) SetPort(p string) {
+	this.port = p
 }
 
 //
@@ -193,13 +203,19 @@ func (this *RavenReceiver) FlushDeadBox() map[string]string {
 
 func (this *RavenReceiver) ShowMessage() {
 	fmt.Println("\n\n--------------------------------------------")
-	fmt.Printf("Following MessageReceivers Started:\n")
-	fmt.Println("\nReceiverId\tIsReliable\tProcBox\tDeadBox")
+	fmt.Printf("MessageReceivers Started:\n")
+	w := tabwriter.NewWriter(os.Stdout, 10, 10, 1, ' ', tabwriter.AlignRight)
+
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "ReceiverId \t IsReliable \t ProcBox \t DeadBox \t ")
+	fmt.Fprintln(w)
 	for _, r := range this.msgReceivers {
-		fmt.Printf("- %s\t%t\t%s\t%s", r.id, r.options.isReliable, r.procBox.GetName(), r.deadBox.GetName())
-		fmt.Println()
+		fmt.Fprintf(w, "%s \t %t \t %s \t %s \t", r.id, r.options.isReliable, r.procBox.GetName(), r.deadBox.GetName())
+		fmt.Fprintln(w)
 	}
+	w.Flush()
 	fmt.Println("--------------------------------------------")
 	fmt.Printf("\nConsumer Communication Port: %s\n", this.GetPort())
+	fmt.Println("--------------------------------------------")
 	return
 }
