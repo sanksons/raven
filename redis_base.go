@@ -273,5 +273,6 @@ func (this *redisbase) GetDeadQCount(r MsgReceiver) (int, error) {
 }
 
 func (this *redisbase) FlushAll(r MsgReceiver) error {
-	return ErrNotImplemented
+	res := this.Client.Del(r.msgbox.GetName(), r.procBox.GetName(), r.deadBox.GetName())
+	return res.Err()
 }

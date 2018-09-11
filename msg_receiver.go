@@ -330,3 +330,7 @@ func (this *MsgReceiver) GetDeadBoxCount() (int, error) {
 func (this *MsgReceiver) flushDeadBox() error {
 	return this.parent.farm.manager.FlushDeadQ(*this)
 }
+
+func (this *MsgReceiver) flushAll() error {
+	return this.parent.farm.manager.FlushAll(*this)
+}

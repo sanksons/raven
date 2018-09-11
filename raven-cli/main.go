@@ -43,6 +43,7 @@ func main() {
 	shell.AddCmd(common.GetPingCmd())
 	shell.AddCmd(common.GetStatusCmd())
 	shell.AddCmd(common.FlushDeadCmd())
+	shell.AddCmd(common.FlushAllCmd())
 
 	shell.AutoHelp(true)
 	//shell.ClearScreen()

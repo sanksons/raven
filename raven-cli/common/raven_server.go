@@ -50,6 +50,16 @@ func (this *RavenServer) FlushDeadQ() (map[string]interface{}, error) {
 	return data, nil
 }
 
+func (this *RavenServer) FlushAll() (map[string]interface{}, error) {
+	url := fmt.Sprintf("http://%s:%s/flushAll", this.IP, this.Port)
+	var data map[string]interface{}
+	err := fireHttpPost(url, "", &data)
+	if err != nil {
+		return data, err
+	}
+	return data, nil
+}
+
 func (this *RavenServer) GetNewShell() *ishell.Shell {
 	ishell := ishell.NewWithConfig(
 		&readline.Config{Prompt: fmt.Sprintf("Raven@%s:%s >>> ", this.IP, this.Port)},

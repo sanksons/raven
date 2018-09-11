@@ -32,10 +32,11 @@ func (this *ReceiverHolder) defineRoutes() {
 	this.engine.GET("/", this.ping)
 	this.engine.GET("/ping", this.ping)
 	this.engine.GET("/stats", this.stats)
-	//r.POST("/flushAll", receiverHolder.flushAll)
+
 	//kill receiver/restart
 	//show dead messages.
 	this.engine.POST("/flushDead", this.flushDeadQ)
+	this.engine.POST("/flushAll", this.flushAll)
 }
 
 func (this *ReceiverHolder) startListening() error {
@@ -80,14 +81,12 @@ func (this *ReceiverHolder) flushDeadQ(c *gin.Context) {
 	c.JSON(200, data)
 }
 
+func (this *ReceiverHolder) flushAll(c *gin.Context) {
+	responsedata := this.receiver.FlushAll()
+	data := responsedata
+	c.JSON(200, data)
+}
+
 func (this *ReceiverHolder) ping(c *gin.Context) {
 	c.JSON(200, "OK")
 }
-
-// func (this *ReceiverHolder) flushAll(c *gin.Context) {
-
-// 	data := gin.H{
-// 		"success": "OK",
-// 	}
-// 	c.JSON(200, data)
-// }
