@@ -12,8 +12,11 @@ import (
 func StartServer(receiver *RavenReceiver) error {
 
 	fmt.Println("Starting Server ...")
+	//make sure we are running in release mode.
 	gin.SetMode(gin.ReleaseMode)
-	r := gin.Default()
+	r := gin.New()
+
+	//r := gin.Default()
 
 	receiverHolder := &ReceiverHolder{receiver, r}
 	//Define routes
@@ -32,6 +35,7 @@ func (this *ReceiverHolder) defineRoutes() {
 	this.engine.GET("/", this.ping)
 	this.engine.GET("/ping", this.ping)
 	this.engine.GET("/stats", this.stats)
+	this.engine.GET("/showDeadBox", this.showDeadBox)
 
 	//kill receiver/restart
 	//show dead messages.
@@ -89,4 +93,13 @@ func (this *ReceiverHolder) flushAll(c *gin.Context) {
 
 func (this *ReceiverHolder) ping(c *gin.Context) {
 	c.JSON(200, "OK")
+}
+
+func (this *ReceiverHolder) showDeadBox(c *gin.Context) {
+	msgs, err := this.receiver.ShowDeadBox()
+	if err != nil {
+		c.JSON(500, err.Error())
+		return
+	}
+	c.JSON(200, msgs)
 }

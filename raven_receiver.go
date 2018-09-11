@@ -213,6 +213,19 @@ func (this *RavenReceiver) FlushAll() map[string]string {
 	return holder
 }
 
+func (this *RavenReceiver) ShowDeadBox() ([]*Message, error) {
+	m := make([]*Message, 0)
+	for _, r := range this.msgReceivers {
+
+		msgs, err := r.showDeadBox()
+		if err != nil {
+			return nil, err
+		}
+		m = append(m, msgs...)
+	}
+	return m, nil
+}
+
 func (this *RavenReceiver) ShowMessage() {
 	fmt.Println("\n\n--------------------------------------------")
 	fmt.Printf("MessageReceivers Started:\n")

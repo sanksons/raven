@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
@@ -11,6 +12,12 @@ import (
 
 const DESTINATION = "productQ"
 const BUCKET = "1"
+
+type m struct {
+	Name  string
+	Id    int
+	Class string
+}
 
 func main() {
 
@@ -37,8 +44,14 @@ func main() {
 	for {
 		counter++
 
+		d := m{
+			Name:  fmt.Sprintf("I am message number: %d", counter),
+			Id:    counter,
+			Class: "My class",
+		}
+		dataBytes, _ := json.Marshal(d)
 		var mess raven.Message = raven.PrepareMessage(
-			strconv.Itoa(counter), "", fmt.Sprintf("Hello %d!!", counter))
+			strconv.Itoa(counter), "", string(dataBytes), strconv.Itoa(counter))
 
 		fmt.Printf("Publishing message [%+v]\n", mess)
 

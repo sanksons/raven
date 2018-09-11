@@ -44,6 +44,7 @@ func main() {
 	shell.AddCmd(common.GetStatusCmd())
 	shell.AddCmd(common.FlushDeadCmd())
 	shell.AddCmd(common.FlushAllCmd())
+	shell.AddCmd(common.ShowDeadBoxCmd())
 
 	shell.AutoHelp(true)
 	//shell.ClearScreen()

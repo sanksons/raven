@@ -15,6 +15,13 @@ type RecStatus struct {
 	IsReliable bool
 }
 
+type Message struct {
+	Id       string
+	Type     string
+	Data     interface{}
+	ShardKey string
+}
+
 type RavenServer struct {
 	IP   string
 	Port string
@@ -33,6 +40,16 @@ func (this *RavenServer) Ping() (string, error) {
 func (this *RavenServer) FetchStatus() (RecStatus, error) {
 	url := fmt.Sprintf("http://%s:%s/stats", this.IP, this.Port)
 	var data RecStatus
+	err := fireHttp(url, &data)
+	if err != nil {
+		return data, err
+	}
+	return data, nil
+}
+
+func (this *RavenServer) ShowDeadBox() ([]Message, error) {
+	url := fmt.Sprintf("http://%s:%s/showDeadBox", this.IP, this.Port)
+	var data []Message
 	err := fireHttp(url, &data)
 	if err != nil {
 		return data, err
