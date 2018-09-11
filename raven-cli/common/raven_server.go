@@ -15,6 +15,13 @@ type RecStatus struct {
 	IsReliable bool
 }
 
+type Message struct {
+	Id       string
+	Type     string
+	Data     interface{}
+	ShardKey string
+}
+
 type RavenServer struct {
 	IP   string
 	Port string
@@ -40,8 +47,28 @@ func (this *RavenServer) FetchStatus() (RecStatus, error) {
 	return data, nil
 }
 
+func (this *RavenServer) ShowDeadBox() ([]Message, error) {
+	url := fmt.Sprintf("http://%s:%s/showDeadBox", this.IP, this.Port)
+	var data []Message
+	err := fireHttp(url, &data)
+	if err != nil {
+		return data, err
+	}
+	return data, nil
+}
+
 func (this *RavenServer) FlushDeadQ() (map[string]interface{}, error) {
 	url := fmt.Sprintf("http://%s:%s/flushDead", this.IP, this.Port)
+	var data map[string]interface{}
+	err := fireHttpPost(url, "", &data)
+	if err != nil {
+		return data, err
+	}
+	return data, nil
+}
+
+func (this *RavenServer) FlushAll() (map[string]interface{}, error) {
+	url := fmt.Sprintf("http://%s:%s/flushAll", this.IP, this.Port)
 	var data map[string]interface{}
 	err := fireHttpPost(url, "", &data)
 	if err != nil {

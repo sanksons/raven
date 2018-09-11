@@ -53,5 +53,5 @@ func main() {
 func c(message *raven.Message, txn newrelic.Transaction) error {
 	//time.Sleep(1 * time.Minute)
 	fmt.Printf("Got message: %s\n", message)
-	return nil
+	return fmt.Errorf("sdsd")
 }
