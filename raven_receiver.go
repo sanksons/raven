@@ -5,6 +5,11 @@ import (
 	"os"
 	"strconv"
 	"text/tabwriter"
+	"time"
+
+	"github.com/sanksons/gowraps/util"
+
+	"github.com/sanksons/raven/childlock"
 )
 
 //
@@ -19,8 +24,9 @@ func newRavenReceiver(id string, source Source) (*RavenReceiver, error) {
 	msgreceivers := make([]*MsgReceiver, 0, len(source.MsgBoxes))
 	for _, box := range source.MsgBoxes {
 		m := &MsgReceiver{
-			msgbox: box,
-			parent: rr,
+			msgbox:  box,
+			parent:  rr,
+			stopped: make(chan bool),
 		}
 		// Set Id for msgReceiver.
 		m.setId(box.GetName())
@@ -55,6 +61,9 @@ type RavenReceiver struct {
 
 	// Access to Raven farm and underlying adapters.
 	farm *Farm
+
+	//A lock which ensures singleton receiver.
+	lock *childlock.Lock
 }
 
 func (this *RavenReceiver) defineAccessPort(port string) {
@@ -123,14 +132,89 @@ func (this *RavenReceiver) validate() error {
 	return nil
 }
 
+func (this *RavenReceiver) Lock() error {
+	if this.lock == nil {
+		return nil
+	}
+	//	fmt.Println("lock")
+	r := time.Now().Format(time.RFC3339)
+	if err := this.lock.Acquire(r); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (this *RavenReceiver) Unlock() error {
+	if this.lock == nil {
+		return nil
+	}
+	//fmt.Println("unlock")
+	if err := this.lock.Release(); err != nil {
+		return err
+	}
+	//	fmt.Println("unlock done")
+	return nil
+}
+
+func (this *RavenReceiver) RefreshLock() error {
+	if this.lock == nil {
+		return nil
+	}
+
+	go func() {
+		for {
+			time.Sleep(CHILD_LOCK_REFRESH_INTERVAL * time.Second)
+			func() {
+				//fmt.Println("referesh")
+				defer util.PanicHandler("Lock Refresh failed")
+				if err := this.lock.Refresh(); err != nil {
+					fmt.Printf("Lock refresh failed, Error: %s", err.Error())
+				}
+
+			}()
+		}
+
+	}()
+
+	return nil
+}
+
+func (this *RavenReceiver) Stop() {
+
+	defer func() {
+		this.Unlock()
+		fmt.Println("Lock released")
+	}()
+	chanx := make(chan bool)
+	for _, receiver := range this.msgReceivers {
+		fmt.Printf("\nStopping MsgReceiver: %s", receiver.id)
+
+		go func(receiver *MsgReceiver) {
+			receiver.stop()
+			chanx <- true
+		}(receiver)
+	}
+
+	for _ = range this.msgReceivers {
+		<-chanx
+	}
+
+}
+
 func (this *RavenReceiver) Start(f MessageHandler) error {
 
 	if err := this.validate(); err != nil {
 		return err
 	}
 
-	//@todo: handle locking mechanism here to ensure only one receiver for a destination
-	// runs at any time.
+	//Take lock, this ensures only one receiver is receiving from Q.
+	if err := this.Lock(); err != nil {
+		return err
+	}
+	defer this.Unlock()
+
+	//Refresh lock
+	this.RefreshLock()
 
 	// execute prestart hook of all receivers.
 	// once all prestart hooks are successfull start receivers.

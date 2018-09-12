@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/sanksons/raven/childlock"
+
 	"github.com/newrelic/go-agent"
 
 	"github.com/sanksons/raven"
@@ -17,8 +19,8 @@ func main() {
 	//
 	// Initialize raven farm.
 	//
-	loggerStrict := new(raven.FmtLogger)
-	loggerStrict.Level = 10
+	loggerStrict := new(raven.DummyLogger)
+	//loggerStrict.Level = 10
 
 	farm, err := raven.InitializeFarm(raven.FARM_TYPE_REDIS, raven.RedisSimpleConfig{
 		Addr:     "localhost:6379",
@@ -29,6 +31,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	//Make sure lock details are attached.
+	farm.AttachLockOptions(childlock.RedisOptions{
+		Addres: []string{"localhost:6379"},
+	})
 
 	// Define a source from which to receive.
 	var source raven.Source = raven.CreateSource(SOURCE, BUCKETS)

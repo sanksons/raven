@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -22,7 +24,29 @@ func StartServer(receiver *RavenReceiver) error {
 	//Define routes
 	receiverHolder.defineRoutes()
 
-	return receiverHolder.startListening()
+	quit := make(chan os.Signal)
+	signal.Notify(quit, os.Interrupt)
+
+	go func() {
+		<-quit
+		//fmt.Println("got interrupt")
+		StopServer(receiver)
+		//	time.Sleep(time.Second * 10)
+		os.Exit(0)
+	}()
+	if err := receiverHolder.startListening(); err != nil {
+		StopServer(receiver)
+		return err
+	}
+	return nil
+}
+
+func StopServer(receiver *RavenReceiver) error {
+	fmt.Println("Stopping Server...")
+	fmt.Println("######################################")
+	receiver.Stop()
+	fmt.Println("######################################")
+	return nil
 }
 
 type ReceiverHolder struct {
@@ -55,7 +79,10 @@ func (this *ReceiverHolder) startListening() error {
 	}
 	this.receiver.port = strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
 	this.receiver.ShowMessage()
-	return http.Serve(listener, this.engine)
+
+	s := http.Server{}
+	s.Handler = this.engine
+	return s.Serve(listener)
 }
 
 func (this *ReceiverHolder) stats(c *gin.Context) {
