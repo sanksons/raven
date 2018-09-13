@@ -124,7 +124,7 @@ func (this *RavenReceiver) Stop() {
 
 	defer func() {
 		this.unlock()
-		fmt.Printf("\nLock released")
+		fmt.Printf("\nLock released\n")
 	}()
 	chanx := make(chan bool)
 	for _, receiver := range this.msgReceivers {

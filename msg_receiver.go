@@ -35,9 +35,9 @@ type MsgReceiver struct {
 	procBox MsgBox
 	deadBox MsgBox
 
-	stopFlag         bool
-	stopped          chan bool
-	stoppedHeartBeat chan bool
+	// Flags required to handle proper shutdown of msgreceivers.
+	stopFlag bool
+	stopped  chan bool
 }
 
 func (this MsgReceiver) String() string {
@@ -198,13 +198,18 @@ func (this *MsgReceiver) preStart() error {
 
 }
 
+//
+// stop shutdown the msgreceiver
+//
 func (this *MsgReceiver) stop() {
 	this.stopFlag = true
-
 	<-this.stopped
 	return
 }
 
+//
+// start starts up the message receiver.
+//
 func (this *MsgReceiver) start(f MessageHandler) {
 
 	this.log("info", fmt.Sprintf("Starting Raven receiver with config, %s", this))
@@ -256,6 +261,8 @@ func (this *MsgReceiver) start(f MessageHandler) {
 				)
 			}
 		} else if execerr == ErrTmpFailure { // Requeue Message.
+			//@todo: need to check if there should be a limit for requing message.
+			// else it might stuck in a never ending loop, if client is sending incorrect error.
 			this.log("error", fmt.Sprintf("Got temporary error while processing. message [%s], requeing it", msg))
 			if err := this.requeueMessage(*msg); err != nil {
 				this.log("error",
@@ -276,27 +283,6 @@ func (this *MsgReceiver) start(f MessageHandler) {
 		}
 
 	}
-}
-
-//
-// Mark Message as processed.
-//
-func (this *MsgReceiver) markProcessed(msg *Message) error {
-	return this.parent.farm.manager.MarkProcessed(msg, *this)
-}
-
-//
-// Requeue message incase of tmp error.
-//
-func (this *MsgReceiver) requeueMessage(msg Message) error {
-	return this.parent.farm.manager.RequeMessage(msg, *this)
-}
-
-//
-// Mark message as failed.
-//
-func (this *MsgReceiver) markFailed(msg *Message) error {
-	return this.parent.farm.manager.MarkFailed(msg, *this)
 }
 
 //
@@ -325,6 +311,9 @@ func (this *MsgReceiver) processMessage(msg *Message, f MessageHandler) error {
 	return execerr
 }
 
+//
+// Show contents of deadBox.
+//
 func (this *MsgReceiver) showDeadBox() ([]*Message, error) {
 	return this.parent.farm.manager.ShowDeadQ(*this)
 }
@@ -343,6 +332,30 @@ func (this *MsgReceiver) flushDeadBox() error {
 	return this.parent.farm.manager.FlushDeadQ(*this)
 }
 
+//
+// Flush All messages
+//
 func (this *MsgReceiver) flushAll() error {
 	return this.parent.farm.manager.FlushAll(*this)
+}
+
+//
+// Mark Message as processed.
+//
+func (this *MsgReceiver) markProcessed(msg *Message) error {
+	return this.parent.farm.manager.MarkProcessed(msg, *this)
+}
+
+//
+// Requeue message incase of tmp error.
+//
+func (this *MsgReceiver) requeueMessage(msg Message) error {
+	return this.parent.farm.manager.RequeMessage(msg, *this)
+}
+
+//
+// Mark message as failed.
+//
+func (this *MsgReceiver) markFailed(msg *Message) error {
+	return this.parent.farm.manager.MarkFailed(msg, *this)
 }

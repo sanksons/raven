@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/gin-gonic/gin"
 )
@@ -44,8 +45,7 @@ type ReceiverHolder struct {
 	listener net.Listener
 }
 
-//
-// Used to shutdown the server.
+// Shutdown is Used to shutdown the server.
 //
 func (this *ReceiverHolder) Shutdown() error {
 	fmt.Println("Shutting down Server...please wait.")
@@ -78,7 +78,7 @@ func (this *ReceiverHolder) Start() error {
 //before shutting down server.
 func (this *ReceiverHolder) registerShutdownHook() {
 	quit := make(chan os.Signal)
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-quit
 		fmt.Println("got interrupt")
