@@ -66,15 +66,14 @@ type RavenReceiver struct {
 	lock *childlock.Lock
 }
 
-func (this *RavenReceiver) defineAccessPort(port string) {
-	this.port = port
+//
+// Get identifier for the receiver.
+//
+func (this *RavenReceiver) GetId() string {
+	return this.id
 }
 
-func (this *RavenReceiver) setSource(s Source) *RavenReceiver {
-	this.source = s
-	return this
-}
-
+//internal function to define id of a receiver.
 func (this *RavenReceiver) setId(id string) *RavenReceiver {
 	// Make sure we are setting source before Id.
 	// Since a Source can have only one receiver at a time, it makes perfect sense to allot
@@ -83,10 +82,9 @@ func (this *RavenReceiver) setId(id string) *RavenReceiver {
 	return this
 }
 
-func (this *RavenReceiver) GetId() string {
-	return this.id
-}
-
+//
+// Get allocated port for the receiver.
+//
 func (this *RavenReceiver) GetPort() string {
 	return this.port
 }
@@ -97,6 +95,14 @@ func (this *RavenReceiver) GetPort() string {
 //
 func (this *RavenReceiver) SetPort(p string) {
 	this.port = p
+}
+
+//
+// Define the source from which receiver need to look for messages.
+//
+func (this *RavenReceiver) setSource(s Source) *RavenReceiver {
+	this.source = s
+	return this
 }
 
 //
@@ -111,79 +117,14 @@ func (this *RavenReceiver) MarkReliable() *RavenReceiver {
 	return this
 }
 
-//@todo: implement all the necessary validations required for a receiver.
-func (this *RavenReceiver) validate() error {
-
-	//Check if Id, Source and farm are defined.
-	// check if atleast one receiver is assigned.
-
-	if this.id == "" {
-		return fmt.Errorf("An Id needs to be assigned to Receiver. Make sure its unique within source")
-	}
-	if this.source.GetName() == "" {
-		return fmt.Errorf("Receiver Source cannot be Empty")
-	}
-	if this.farm == nil {
-		return fmt.Errorf("You need to define to which farm this receiver belongs.")
-	}
-	if len(this.msgReceivers) <= 0 {
-		return fmt.Errorf("Atleast one msg Receiver needs to be assigned")
-	}
-	return nil
-}
-
-func (this *RavenReceiver) Lock() error {
-	if this.lock == nil {
-		return nil
-	}
-	//	fmt.Println("lock")
-	r := time.Now().Format(time.RFC3339)
-	if err := this.lock.Acquire(r); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (this *RavenReceiver) Unlock() error {
-	if this.lock == nil {
-		return nil
-	}
-	//fmt.Println("unlock")
-	if err := this.lock.Release(); err != nil {
-		return err
-	}
-	//	fmt.Println("unlock done")
-	return nil
-}
-
-func (this *RavenReceiver) RefreshLock() error {
-	if this.lock == nil {
-		return nil
-	}
-
-	go func() {
-		for {
-			time.Sleep(CHILD_LOCK_REFRESH_INTERVAL * time.Second)
-			func() {
-				//fmt.Println("referesh")
-				defer util.PanicHandler("Lock Refresh failed")
-				if err := this.lock.Refresh(); err != nil {
-					fmt.Printf("Lock refresh failed, Error: %s", err.Error())
-				}
-
-			}()
-		}
-
-	}()
-
-	return nil
-}
-
+//
+// Stop the running receiver.
+//
 func (this *RavenReceiver) Stop() {
 
 	defer func() {
-		this.Unlock()
-		fmt.Println("Lock released")
+		this.unlock()
+		fmt.Printf("\nLock released")
 	}()
 	chanx := make(chan bool)
 	for _, receiver := range this.msgReceivers {
@@ -194,13 +135,21 @@ func (this *RavenReceiver) Stop() {
 			chanx <- true
 		}(receiver)
 	}
-
+	//make sure we wait for msgreceivers to stop.
 	for _ = range this.msgReceivers {
 		<-chanx
 	}
-
 }
 
+//
+// Start Raven Receiver.
+// 1. Validate
+// 2. Register Server.
+// 3. Acquire lock.
+// 4. Start lock refresher.
+// 5. Start all message receivers and heartbeat
+// 6. Bootup server.
+//
 func (this *RavenReceiver) Start(f MessageHandler) error {
 
 	if err := this.validate(); err != nil {
@@ -215,13 +164,13 @@ func (this *RavenReceiver) Start(f MessageHandler) error {
 	}
 
 	//Take lock, this ensures only one receiver is receiving from Q.
-	if err := this.Lock(); err != nil {
+	if err := this.lockme(); err != nil {
 		return err
 	}
-	defer this.Unlock()
+	defer this.unlock()
 
 	//Start a refresher so that lock is refreshed at appropriate intervals
-	this.RefreshLock()
+	this.startLockRefresher()
 
 	// execute prestart hook of all receivers.
 	// once all prestart hooks are successfull start receivers.
@@ -246,6 +195,72 @@ func (this *RavenReceiver) Start(f MessageHandler) error {
 	return nil
 }
 
+// lock to used to ensure multiple receivers to the same source are not running.
+func (this *RavenReceiver) lockme() error {
+	if this.lock == nil {
+		return nil
+	}
+	//	fmt.Println("lock")
+	r := time.Now().Format(time.RFC3339)
+	if err := this.lock.Acquire(r); err != nil {
+		return err
+	}
+	return nil
+}
+
+// release lock when the receiver goes down.
+func (this *RavenReceiver) unlock() error {
+	if this.lock == nil {
+		return nil
+	}
+	//fmt.Println("unlock")
+	if err := this.lock.Release(); err != nil {
+		return err
+	}
+	//	fmt.Println("unlock done")
+	return nil
+}
+
+// ensures that the lock does not dies out, till the receiver is running.
+func (this *RavenReceiver) startLockRefresher() error {
+	if this.lock == nil {
+		return nil
+	}
+	go func() {
+		for {
+			time.Sleep(CHILD_LOCK_REFRESH_INTERVAL * time.Second)
+			func() {
+				//fmt.Println("referesh")
+				defer util.PanicHandler("Lock Refresh failed")
+				if err := this.lock.Refresh(); err != nil {
+					fmt.Printf("Lock refresh failed, Error: %s", err.Error())
+				}
+
+			}()
+		}
+	}()
+	return nil
+}
+
+func (this *RavenReceiver) validate() error {
+	// Check if Id, Source and farm are defined.
+	// check if atleast one receiver is assigned.
+
+	if this.id == "" {
+		return fmt.Errorf("An Id needs to be assigned to Receiver. Make sure its unique within source")
+	}
+	if this.source.GetName() == "" {
+		return fmt.Errorf("Receiver Source cannot be Empty")
+	}
+	if this.farm == nil {
+		return fmt.Errorf("You need to define to which farm this receiver belongs.")
+	}
+	if len(this.msgReceivers) <= 0 {
+		return fmt.Errorf("Atleast one msg Receiver needs to be assigned")
+	}
+	return nil
+}
+
 //
 // Get all the ravens still wandering around.
 //
@@ -264,6 +279,9 @@ func (this *RavenReceiver) GetInFlightRavens() map[string]string {
 	return holder
 }
 
+//
+// Get count of messages sitting in dead box.
+//
 func (this *RavenReceiver) GetDeadBoxCount() map[string]string {
 	holder := make(map[string]string, 0)
 	for _, r := range this.msgReceivers {
@@ -279,6 +297,9 @@ func (this *RavenReceiver) GetDeadBoxCount() map[string]string {
 	return holder
 }
 
+//
+// Flush messages sitting in dead box.
+//
 func (this *RavenReceiver) FlushDeadBox() map[string]string {
 	holder := make(map[string]string, 0)
 	for _, r := range this.msgReceivers {
@@ -291,6 +312,9 @@ func (this *RavenReceiver) FlushDeadBox() map[string]string {
 	return holder
 }
 
+//
+// Flush all messages from all boxes.
+//
 func (this *RavenReceiver) FlushAll() map[string]string {
 	holder := make(map[string]string, 0)
 	for _, r := range this.msgReceivers {
@@ -303,6 +327,9 @@ func (this *RavenReceiver) FlushAll() map[string]string {
 	return holder
 }
 
+//
+// List messages from dead box
+//
 func (this *RavenReceiver) ShowDeadBox() ([]*Message, error) {
 	m := make([]*Message, 0)
 	for _, r := range this.msgReceivers {
@@ -316,6 +343,9 @@ func (this *RavenReceiver) ShowDeadBox() ([]*Message, error) {
 	return m, nil
 }
 
+//
+// A informational message to be shown while booting up receiver.
+//
 func (this *RavenReceiver) ShowMessage() {
 	fmt.Println("\n\n--------------------------------------------")
 	fmt.Printf("MessageReceivers Started:\n")

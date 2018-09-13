@@ -35,8 +35,9 @@ type MsgReceiver struct {
 	procBox MsgBox
 	deadBox MsgBox
 
-	stopFlag bool
-	stopped  chan bool
+	stopFlag         bool
+	stopped          chan bool
+	stoppedHeartBeat chan bool
 }
 
 func (this MsgReceiver) String() string {
@@ -146,10 +147,6 @@ func (this *MsgReceiver) GetInFlightRavens() (int, error) {
 func (this *MsgReceiver) StartHeartBeat() {
 
 	for {
-		if this.stopFlag {
-			fmt.Println(fmt.Sprintf("Stopped HeartBeat: %s", this.id))
-			return
-		}
 		func() {
 			// Incase of panic, restart for loop.
 			defer util.PanicHandler(fmt.Sprintf("HeartBeat: %s", this.id))
@@ -213,15 +210,11 @@ func (this *MsgReceiver) start(f MessageHandler) {
 	this.log("info", fmt.Sprintf("Starting Raven receiver with config, %s", this))
 	receiver := *this
 
-	// Wait for a while before starting. this will help incases where webserver
-	// initialization failed avoiding any message to get stuck.
-	//time.Sleep(20 * time.Second)
-
 	// this blocks
 	for {
 		if this.stopFlag {
+			fmt.Printf("\nStopped MsgReceiver: %s", this.id)
 			this.stopped <- true
-			fmt.Println(fmt.Sprintf("Stopped MsgReceiver: %s", this.id))
 			return
 		}
 		//this blocks, so no need for wait on empty Q.

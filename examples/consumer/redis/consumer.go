@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/sanksons/raven/childlock"
 
@@ -60,7 +61,7 @@ func main() {
 }
 
 func c(message *raven.Message, txn newrelic.Transaction) error {
-	//time.Sleep(1 * time.Minute)
+	time.Sleep(1 * time.Second)
 	fmt.Printf("Got message: %s\n", message)
 	return fmt.Errorf("sdsd")
 }
