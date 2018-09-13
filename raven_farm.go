@@ -2,6 +2,7 @@ package raven
 
 import (
 	"github.com/newrelic/go-agent"
+	"github.com/sanksons/raven/childlock"
 )
 
 //
@@ -13,10 +14,15 @@ type Farm struct {
 	manager     RavenManager
 	logger      Logger
 	newrelicApp newrelic.Application
+	lockManager *childlock.LockManager
 }
 
 func (this *Farm) AttachNewRelicApp(app newrelic.Application) {
 	this.newrelicApp = app
+}
+
+func (this *Farm) AttachLock(options childlock.RedisOptions) {
+	this.lockManager = childlock.NewManager(options)
 }
 
 //
@@ -45,5 +51,10 @@ func (this *Farm) GetRavenReceiver(id string, s Source) (*RavenReceiver, error) 
 		return nil, err
 	}
 	receiver.farm = this
+
+	//Add lock details to receiver.
+	if this.lockManager != nil {
+		receiver.lock = this.lockManager.NewLock(receiver.GetId(), CHILD_LOCK_TIMEOUT)
+	}
 	return receiver, nil
 }

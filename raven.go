@@ -5,6 +5,9 @@ import "fmt"
 const FARM_TYPE_REDISCLUSTER = "redis-cluster"
 const FARM_TYPE_REDIS = "redis-simple"
 
+const CHILD_LOCK_TIMEOUT = 60          //inseconds
+const CHILD_LOCK_REFRESH_INTERVAL = 30 //inseconds
+
 //
 // Entry point to this library.
 // mtype: Farm magaer type.

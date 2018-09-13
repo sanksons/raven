@@ -27,6 +27,7 @@ type RedisClient interface {
 	LRange(string, int64, int64) *redis.StringSliceCmd
 	Del(keys ...string) *redis.IntCmd
 	LLen(key string) *redis.IntCmd
+	Close() error
 }
 
 type RedisSimpleClient struct {
@@ -275,4 +276,8 @@ func (this *redisbase) GetDeadQCount(r MsgReceiver) (int, error) {
 func (this *redisbase) FlushAll(r MsgReceiver) error {
 	res := this.Client.Del(r.msgbox.GetName(), r.procBox.GetName(), r.deadBox.GetName())
 	return res.Err()
+}
+
+func (this *redisbase) Quit(r MsgReceiver) error {
+	return this.Client.Close()
 }

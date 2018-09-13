@@ -46,4 +46,7 @@ type RavenManager interface {
 
 	//Get InFlight Messages.
 	InFlightMessages(r MsgReceiver) (int, error)
+
+	//Quit receiving messages
+	Quit(r MsgReceiver) error
 }

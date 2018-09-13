@@ -34,6 +34,10 @@ type MsgReceiver struct {
 	// used only when marked reliable.
 	procBox MsgBox
 	deadBox MsgBox
+
+	// Flags required to handle proper shutdown of msgreceivers.
+	stopFlag bool
+	stopped  chan bool
 }
 
 func (this MsgReceiver) String() string {
@@ -59,6 +63,9 @@ func (this *MsgReceiver) log(ltype string, msg string) {
 
 }
 
+//
+// setId defines identifier for msgreceiver.
+//
 func (this *MsgReceiver) setId(id string) *MsgReceiver {
 	// Since a message box can have only one receiver, it makes sense to allot
 	// msgBox name as Id.
@@ -66,6 +73,9 @@ func (this *MsgReceiver) setId(id string) *MsgReceiver {
 	return this
 }
 
+//
+// getNewrelicTransaction fetches newrelic.Transaction object
+//
 func (this *MsgReceiver) getNewrelicTransaction() newrelic.Transaction {
 	if this.parent.farm.newrelicApp != nil {
 		return this.parent.farm.newrelicApp.StartTransaction(this.id, nil, nil)
@@ -73,6 +83,9 @@ func (this *MsgReceiver) getNewrelicTransaction() newrelic.Transaction {
 	return nil
 }
 
+//
+// endNewrelicTransaction ends existing newrelic transaction
+//
 func (this *MsgReceiver) endNewrelicTransaction(txn newrelic.Transaction) {
 	if txn == nil {
 		return
@@ -80,7 +93,9 @@ func (this *MsgReceiver) endNewrelicTransaction(txn newrelic.Transaction) {
 	txn.End()
 }
 
-//Record heartbeat of consumer.
+//
+// Record heartbeat of consumer.
+//
 func (this *MsgReceiver) recordHeartBeat(inflightCount int, deadCount int) {
 
 	if this.parent.farm.newrelicApp == nil {
@@ -108,18 +123,19 @@ func (this *MsgReceiver) getLogger() Logger {
 }
 
 // Mark the Q as reliable.
-func (this *MsgReceiver) MarkReliable() *MsgReceiver {
+func (this *MsgReceiver) markReliable() *MsgReceiver {
 	this.options.isReliable = true
 	this.defineProcessingQ().defineDeadQ()
 	return this
 }
 
 // Mark the Q as ordered.
-func (this *MsgReceiver) MarkOrdered() *MsgReceiver {
+func (this *MsgReceiver) markOrdered() *MsgReceiver {
 	this.options.ordering = true
 	return this
 }
 
+// define processingQ
 func (this *MsgReceiver) defineProcessingQ() *MsgReceiver {
 
 	qname := fmt.Sprintf("%s-processing", this.msgbox.GetRawName())
@@ -127,6 +143,7 @@ func (this *MsgReceiver) defineProcessingQ() *MsgReceiver {
 	return this
 }
 
+// define deadQ
 func (this *MsgReceiver) defineDeadQ() *MsgReceiver {
 
 	qname := fmt.Sprintf("%s-dead", this.msgbox.GetRawName())
@@ -135,13 +152,14 @@ func (this *MsgReceiver) defineDeadQ() *MsgReceiver {
 }
 
 // Get Messages published but not picked for processing.
-func (this *MsgReceiver) GetInFlightRavens() (int, error) {
+func (this *MsgReceiver) getInFlightRavens() (int, error) {
 	return this.parent.farm.manager.InFlightMessages(*this)
 }
 
+//
 // Start HeartBeat of Receiver.
-func (this *MsgReceiver) StartHeartBeat() {
-
+//
+func (this *MsgReceiver) startHeartBeat() {
 	for {
 		func() {
 			// Incase of panic, restart for loop.
@@ -150,7 +168,7 @@ func (this *MsgReceiver) StartHeartBeat() {
 			// Pulse rate
 			time.Sleep(30 * time.Second)
 
-			cc, err := this.GetInFlightRavens()
+			cc, err := this.getInFlightRavens()
 			if err != nil {
 				this.getLogger().Error(this.msgbox.GetName(), this.id, "HeartBeat",
 					fmt.Sprintf("Error: %s", err.Error()),
@@ -166,15 +184,23 @@ func (this *MsgReceiver) StartHeartBeat() {
 			}
 			//Check if we can record health.
 			this.recordHeartBeat(cc, dc)
-
 		}()
 	}
 }
 
+// ANy validations required for msgreceiver goes here.
 func (this *MsgReceiver) validate() error {
-
 	//@todo: implement all the necessary validations required for receiver.
 	return nil
+}
+
+//
+// stop shutdown the msgreceiver
+//
+func (this *MsgReceiver) stop() {
+	this.stopFlag = true
+	<-this.stopped
+	return
 }
 
 //
@@ -194,17 +220,21 @@ func (this *MsgReceiver) preStart() error {
 
 }
 
+//
+// start starts up the message receiver.
+//
 func (this *MsgReceiver) start(f MessageHandler) {
 
 	this.log("info", fmt.Sprintf("Starting Raven receiver with config, %s", this))
 	receiver := *this
 
-	// Wait for a while before starting. this will help incases where webserver
-	// initialization failed avoiding any message to get stuck.
-	time.Sleep(30 * time.Second)
-
 	// this blocks
 	for {
+		if this.stopFlag {
+			fmt.Printf("\nStopped MsgReceiver: %s", this.id)
+			this.stopped <- true
+			return
+		}
 		//this blocks, so no need for wait on empty Q.
 		msg, err := this.parent.farm.manager.Receive(receiver)
 
@@ -244,6 +274,8 @@ func (this *MsgReceiver) start(f MessageHandler) {
 				)
 			}
 		} else if execerr == ErrTmpFailure { // Requeue Message.
+			//@todo: need to check if there should be a limit for requing message.
+			// else it might stuck in a never ending loop, if client is sending incorrect error.
 			this.log("error", fmt.Sprintf("Got temporary error while processing. message [%s], requeing it", msg))
 			if err := this.requeueMessage(*msg); err != nil {
 				this.log("error",
@@ -264,27 +296,6 @@ func (this *MsgReceiver) start(f MessageHandler) {
 		}
 
 	}
-}
-
-//
-// Mark Message as processed.
-//
-func (this *MsgReceiver) markProcessed(msg *Message) error {
-	return this.parent.farm.manager.MarkProcessed(msg, *this)
-}
-
-//
-// Requeue message incase of tmp error.
-//
-func (this *MsgReceiver) requeueMessage(msg Message) error {
-	return this.parent.farm.manager.RequeMessage(msg, *this)
-}
-
-//
-// Mark message as failed.
-//
-func (this *MsgReceiver) markFailed(msg *Message) error {
-	return this.parent.farm.manager.MarkFailed(msg, *this)
 }
 
 //
@@ -313,6 +324,9 @@ func (this *MsgReceiver) processMessage(msg *Message, f MessageHandler) error {
 	return execerr
 }
 
+//
+// Show contents of deadBox.
+//
 func (this *MsgReceiver) showDeadBox() ([]*Message, error) {
 	return this.parent.farm.manager.ShowDeadQ(*this)
 }
@@ -331,6 +345,30 @@ func (this *MsgReceiver) flushDeadBox() error {
 	return this.parent.farm.manager.FlushDeadQ(*this)
 }
 
+//
+// Flush All messages
+//
 func (this *MsgReceiver) flushAll() error {
 	return this.parent.farm.manager.FlushAll(*this)
+}
+
+//
+// Mark Message as processed.
+//
+func (this *MsgReceiver) markProcessed(msg *Message) error {
+	return this.parent.farm.manager.MarkProcessed(msg, *this)
+}
+
+//
+// Requeue message incase of tmp error.
+//
+func (this *MsgReceiver) requeueMessage(msg Message) error {
+	return this.parent.farm.manager.RequeMessage(msg, *this)
+}
+
+//
+// Mark message as failed.
+//
+func (this *MsgReceiver) markFailed(msg *Message) error {
+	return this.parent.farm.manager.MarkFailed(msg, *this)
 }

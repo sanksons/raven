@@ -5,6 +5,11 @@ import (
 	"os"
 	"strconv"
 	"text/tabwriter"
+	"time"
+
+	"github.com/sanksons/gowraps/util"
+
+	"github.com/sanksons/raven/childlock"
 )
 
 //
@@ -19,8 +24,9 @@ func newRavenReceiver(id string, source Source) (*RavenReceiver, error) {
 	msgreceivers := make([]*MsgReceiver, 0, len(source.MsgBoxes))
 	for _, box := range source.MsgBoxes {
 		m := &MsgReceiver{
-			msgbox: box,
-			parent: rr,
+			msgbox:  box,
+			parent:  rr,
+			stopped: make(chan bool),
 		}
 		// Set Id for msgReceiver.
 		m.setId(box.GetName())
@@ -55,17 +61,19 @@ type RavenReceiver struct {
 
 	// Access to Raven farm and underlying adapters.
 	farm *Farm
+
+	//A lock which ensures singleton receiver.
+	lock *childlock.Lock
 }
 
-func (this *RavenReceiver) defineAccessPort(port string) {
-	this.port = port
+//
+// Get identifier for the receiver.
+//
+func (this *RavenReceiver) GetId() string {
+	return this.id
 }
 
-func (this *RavenReceiver) setSource(s Source) *RavenReceiver {
-	this.source = s
-	return this
-}
-
+//internal function to define id of a receiver.
 func (this *RavenReceiver) setId(id string) *RavenReceiver {
 	// Make sure we are setting source before Id.
 	// Since a Source can have only one receiver at a time, it makes perfect sense to allot
@@ -74,10 +82,9 @@ func (this *RavenReceiver) setId(id string) *RavenReceiver {
 	return this
 }
 
-func (this *RavenReceiver) GetId() string {
-	return this.id
-}
-
+//
+// Get allocated port for the receiver.
+//
 func (this *RavenReceiver) GetPort() string {
 	return this.port
 }
@@ -91,21 +98,152 @@ func (this *RavenReceiver) SetPort(p string) {
 }
 
 //
+// Define the source from which receiver need to look for messages.
+//
+func (this *RavenReceiver) setSource(s Source) *RavenReceiver {
+	this.source = s
+	return this
+}
+
+//
 // Markall the allotted message receivers as reliable.
 //
 func (this *RavenReceiver) MarkReliable() *RavenReceiver {
 	this.options.isReliable = true
 
 	for _, msgReceiver := range this.msgReceivers {
-		msgReceiver.MarkReliable()
+		msgReceiver.markReliable()
 	}
 	return this
 }
 
-//@todo: implement all the necessary validations required for a receiver.
-func (this *RavenReceiver) validate() error {
+//
+// Stop the running receiver.
+//
+func (this *RavenReceiver) Stop() {
 
-	//Check if Id, Source and farm are defined.
+	defer func() {
+		this.unlock()
+		fmt.Printf("\nLock released\n")
+	}()
+	chanx := make(chan bool)
+	for _, receiver := range this.msgReceivers {
+		fmt.Printf("\nStopping MsgReceiver: %s", receiver.id)
+
+		go func(receiver *MsgReceiver) {
+			receiver.stop()
+			chanx <- true
+		}(receiver)
+	}
+	//make sure we wait for msgreceivers to stop.
+	for _ = range this.msgReceivers {
+		<-chanx
+	}
+}
+
+//
+// Start Raven Receiver.
+// 1. Validate
+// 2. Register Server.
+// 3. Acquire lock.
+// 4. Start lock refresher.
+// 5. Start all message receivers and heartbeat
+// 6. Bootup server.
+//
+func (this *RavenReceiver) Start(f MessageHandler) error {
+
+	if err := this.validate(); err != nil {
+		return err
+	}
+
+	//Register server, code is written in such a manner that errors related to
+	//address are already caught here.
+	server, err := GetServer(this)
+	if err != nil {
+		return err
+	}
+
+	//Take lock, this ensures only one receiver is receiving from Q.
+	if err := this.lockme(); err != nil {
+		return err
+	}
+	defer this.unlock()
+
+	//Start a refresher so that lock is refreshed at appropriate intervals
+	this.startLockRefresher()
+
+	// execute prestart hook of all receivers.
+	// once all prestart hooks are successfull start receivers.
+	for _, msgreceiver := range this.msgReceivers {
+		if err := msgreceiver.preStart(); err != nil {
+			return err
+		}
+	}
+
+	// Start receivers.
+	//   Since the start functions of receivers block, we need to start
+	//   receivers as seperate goroutines.
+	for _, msgreceiver := range this.msgReceivers {
+		go msgreceiver.startHeartBeat()
+		go msgreceiver.start(f)
+	}
+
+	//Once all the receivers are up boot up the server.
+	if err := server.Start(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// lock to used to ensure multiple receivers to the same source are not running.
+func (this *RavenReceiver) lockme() error {
+	if this.lock == nil {
+		return nil
+	}
+	//	fmt.Println("lock")
+	r := time.Now().Format(time.RFC3339)
+	if err := this.lock.Acquire(r); err != nil {
+		return err
+	}
+	return nil
+}
+
+// release lock when the receiver goes down.
+func (this *RavenReceiver) unlock() error {
+	if this.lock == nil {
+		return nil
+	}
+	//fmt.Println("unlock")
+	if err := this.lock.Release(); err != nil {
+		return err
+	}
+	//	fmt.Println("unlock done")
+	return nil
+}
+
+// ensures that the lock does not dies out, till the receiver is running.
+func (this *RavenReceiver) startLockRefresher() error {
+	if this.lock == nil {
+		return nil
+	}
+	go func() {
+		for {
+			time.Sleep(CHILD_LOCK_REFRESH_INTERVAL * time.Second)
+			func() {
+				//fmt.Println("referesh")
+				defer util.PanicHandler("Lock Refresh failed")
+				if err := this.lock.Refresh(); err != nil {
+					fmt.Printf("Lock refresh failed, Error: %s", err.Error())
+				}
+
+			}()
+		}
+	}()
+	return nil
+}
+
+func (this *RavenReceiver) validate() error {
+	// Check if Id, Source and farm are defined.
 	// check if atleast one receiver is assigned.
 
 	if this.id == "" {
@@ -123,39 +261,6 @@ func (this *RavenReceiver) validate() error {
 	return nil
 }
 
-func (this *RavenReceiver) Start(f MessageHandler) error {
-
-	if err := this.validate(); err != nil {
-		return err
-	}
-
-	//@todo: handle locking mechanism here to ensure only one receiver for a destination
-	// runs at any time.
-
-	// execute prestart hook of all receivers.
-	// once all prestart hooks are successfull start receivers.
-	for _, msgreceiver := range this.msgReceivers {
-		if err := msgreceiver.preStart(); err != nil {
-			return err
-		}
-	}
-
-	//@todo: Start receivers.
-	// Since the start functions of receivers block, we need to start
-	// receivers as seperate goroutines.
-	// @todo: need to control these receivers from channels.
-	for _, msgreceiver := range this.msgReceivers {
-		go msgreceiver.StartHeartBeat()
-		go msgreceiver.start(f)
-	}
-
-	//Once all the receivers are up boot up the server.
-	if err := StartServer(this); err != nil {
-		return err
-	}
-	return nil
-}
-
 //
 // Get all the ravens still wandering around.
 //
@@ -163,7 +268,7 @@ func (this *RavenReceiver) GetInFlightRavens() map[string]string {
 	holder := make(map[string]string, len(this.msgReceivers))
 	for _, r := range this.msgReceivers {
 		var val string
-		cc, err := r.GetInFlightRavens()
+		cc, err := r.getInFlightRavens()
 		if err != nil {
 			val = err.Error()
 		} else {
@@ -174,6 +279,9 @@ func (this *RavenReceiver) GetInFlightRavens() map[string]string {
 	return holder
 }
 
+//
+// Get count of messages sitting in dead box.
+//
 func (this *RavenReceiver) GetDeadBoxCount() map[string]string {
 	holder := make(map[string]string, 0)
 	for _, r := range this.msgReceivers {
@@ -189,6 +297,9 @@ func (this *RavenReceiver) GetDeadBoxCount() map[string]string {
 	return holder
 }
 
+//
+// Flush messages sitting in dead box.
+//
 func (this *RavenReceiver) FlushDeadBox() map[string]string {
 	holder := make(map[string]string, 0)
 	for _, r := range this.msgReceivers {
@@ -201,6 +312,9 @@ func (this *RavenReceiver) FlushDeadBox() map[string]string {
 	return holder
 }
 
+//
+// Flush all messages from all boxes.
+//
 func (this *RavenReceiver) FlushAll() map[string]string {
 	holder := make(map[string]string, 0)
 	for _, r := range this.msgReceivers {
@@ -213,6 +327,9 @@ func (this *RavenReceiver) FlushAll() map[string]string {
 	return holder
 }
 
+//
+// List messages from dead box
+//
 func (this *RavenReceiver) ShowDeadBox() ([]*Message, error) {
 	m := make([]*Message, 0)
 	for _, r := range this.msgReceivers {
@@ -226,6 +343,9 @@ func (this *RavenReceiver) ShowDeadBox() ([]*Message, error) {
 	return m, nil
 }
 
+//
+// A informational message to be shown while booting up receiver.
+//
 func (this *RavenReceiver) ShowMessage() {
 	fmt.Println("\n\n--------------------------------------------")
 	fmt.Printf("MessageReceivers Started:\n")
