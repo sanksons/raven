@@ -112,7 +112,7 @@ func (this *RavenReceiver) MarkReliable() *RavenReceiver {
 	this.options.isReliable = true
 
 	for _, msgReceiver := range this.msgReceivers {
-		msgReceiver.MarkReliable()
+		msgReceiver.markReliable()
 	}
 	return this
 }
@@ -184,7 +184,7 @@ func (this *RavenReceiver) Start(f MessageHandler) error {
 	//   Since the start functions of receivers block, we need to start
 	//   receivers as seperate goroutines.
 	for _, msgreceiver := range this.msgReceivers {
-		go msgreceiver.StartHeartBeat()
+		go msgreceiver.startHeartBeat()
 		go msgreceiver.start(f)
 	}
 
@@ -268,7 +268,7 @@ func (this *RavenReceiver) GetInFlightRavens() map[string]string {
 	holder := make(map[string]string, len(this.msgReceivers))
 	for _, r := range this.msgReceivers {
 		var val string
-		cc, err := r.GetInFlightRavens()
+		cc, err := r.getInFlightRavens()
 		if err != nil {
 			val = err.Error()
 		} else {

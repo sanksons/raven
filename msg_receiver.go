@@ -63,6 +63,9 @@ func (this *MsgReceiver) log(ltype string, msg string) {
 
 }
 
+//
+// setId defines identifier for msgreceiver.
+//
 func (this *MsgReceiver) setId(id string) *MsgReceiver {
 	// Since a message box can have only one receiver, it makes sense to allot
 	// msgBox name as Id.
@@ -70,6 +73,9 @@ func (this *MsgReceiver) setId(id string) *MsgReceiver {
 	return this
 }
 
+//
+// getNewrelicTransaction fetches newrelic.Transaction object
+//
 func (this *MsgReceiver) getNewrelicTransaction() newrelic.Transaction {
 	if this.parent.farm.newrelicApp != nil {
 		return this.parent.farm.newrelicApp.StartTransaction(this.id, nil, nil)
@@ -77,6 +83,9 @@ func (this *MsgReceiver) getNewrelicTransaction() newrelic.Transaction {
 	return nil
 }
 
+//
+// endNewrelicTransaction ends existing newrelic transaction
+//
 func (this *MsgReceiver) endNewrelicTransaction(txn newrelic.Transaction) {
 	if txn == nil {
 		return
@@ -84,7 +93,9 @@ func (this *MsgReceiver) endNewrelicTransaction(txn newrelic.Transaction) {
 	txn.End()
 }
 
-//Record heartbeat of consumer.
+//
+// Record heartbeat of consumer.
+//
 func (this *MsgReceiver) recordHeartBeat(inflightCount int, deadCount int) {
 
 	if this.parent.farm.newrelicApp == nil {
@@ -112,18 +123,19 @@ func (this *MsgReceiver) getLogger() Logger {
 }
 
 // Mark the Q as reliable.
-func (this *MsgReceiver) MarkReliable() *MsgReceiver {
+func (this *MsgReceiver) markReliable() *MsgReceiver {
 	this.options.isReliable = true
 	this.defineProcessingQ().defineDeadQ()
 	return this
 }
 
 // Mark the Q as ordered.
-func (this *MsgReceiver) MarkOrdered() *MsgReceiver {
+func (this *MsgReceiver) markOrdered() *MsgReceiver {
 	this.options.ordering = true
 	return this
 }
 
+// define processingQ
 func (this *MsgReceiver) defineProcessingQ() *MsgReceiver {
 
 	qname := fmt.Sprintf("%s-processing", this.msgbox.GetRawName())
@@ -131,6 +143,7 @@ func (this *MsgReceiver) defineProcessingQ() *MsgReceiver {
 	return this
 }
 
+// define deadQ
 func (this *MsgReceiver) defineDeadQ() *MsgReceiver {
 
 	qname := fmt.Sprintf("%s-dead", this.msgbox.GetRawName())
@@ -139,13 +152,14 @@ func (this *MsgReceiver) defineDeadQ() *MsgReceiver {
 }
 
 // Get Messages published but not picked for processing.
-func (this *MsgReceiver) GetInFlightRavens() (int, error) {
+func (this *MsgReceiver) getInFlightRavens() (int, error) {
 	return this.parent.farm.manager.InFlightMessages(*this)
 }
 
+//
 // Start HeartBeat of Receiver.
-func (this *MsgReceiver) StartHeartBeat() {
-
+//
+func (this *MsgReceiver) startHeartBeat() {
 	for {
 		func() {
 			// Incase of panic, restart for loop.
@@ -154,7 +168,7 @@ func (this *MsgReceiver) StartHeartBeat() {
 			// Pulse rate
 			time.Sleep(30 * time.Second)
 
-			cc, err := this.GetInFlightRavens()
+			cc, err := this.getInFlightRavens()
 			if err != nil {
 				this.getLogger().Error(this.msgbox.GetName(), this.id, "HeartBeat",
 					fmt.Sprintf("Error: %s", err.Error()),
@@ -170,15 +184,23 @@ func (this *MsgReceiver) StartHeartBeat() {
 			}
 			//Check if we can record health.
 			this.recordHeartBeat(cc, dc)
-
 		}()
 	}
 }
 
+// ANy validations required for msgreceiver goes here.
 func (this *MsgReceiver) validate() error {
-
 	//@todo: implement all the necessary validations required for receiver.
 	return nil
+}
+
+//
+// stop shutdown the msgreceiver
+//
+func (this *MsgReceiver) stop() {
+	this.stopFlag = true
+	<-this.stopped
+	return
 }
 
 //
@@ -196,15 +218,6 @@ func (this *MsgReceiver) preStart() error {
 	}
 	return nil
 
-}
-
-//
-// stop shutdown the msgreceiver
-//
-func (this *MsgReceiver) stop() {
-	this.stopFlag = true
-	<-this.stopped
-	return
 }
 
 //
