@@ -33,7 +33,7 @@ func main() {
 	}
 
 	//Make sure lock details are attached.
-	farm.AttachLockOptions(childlock.RedisOptions{
+	farm.AttachLock(childlock.RedisOptions{
 		Addres: []string{"localhost:6379"},
 	})
 
@@ -51,6 +51,7 @@ func main() {
 	receiver.SetPort("9001")
 
 	//start receiving
+
 	err1 := receiver.Start(c)
 	if err1 != nil {
 		log.Fatal(err1)

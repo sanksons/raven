@@ -14,15 +14,15 @@ type Farm struct {
 	manager     RavenManager
 	logger      Logger
 	newrelicApp newrelic.Application
-	lockOptions *childlock.RedisOptions
+	lockManager *childlock.LockManager
 }
 
 func (this *Farm) AttachNewRelicApp(app newrelic.Application) {
 	this.newrelicApp = app
 }
 
-func (this *Farm) AttachLockOptions(options childlock.RedisOptions) {
-	this.lockOptions = &options
+func (this *Farm) AttachLock(options childlock.RedisOptions) {
+	this.lockManager = childlock.NewManager(options)
 }
 
 //
@@ -53,8 +53,8 @@ func (this *Farm) GetRavenReceiver(id string, s Source) (*RavenReceiver, error) 
 	receiver.farm = this
 
 	//Add lock details to receiver.
-	if this.lockOptions != nil {
-		receiver.lock = childlock.New(receiver.GetId(), CHILD_LOCK_TIMEOUT, *this.lockOptions)
+	if this.lockManager != nil {
+		receiver.lock = this.lockManager.NewLock(receiver.GetId(), CHILD_LOCK_TIMEOUT)
 	}
 	return receiver, nil
 }
