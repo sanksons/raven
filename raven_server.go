@@ -6,54 +6,88 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-func StartServer(receiver *RavenReceiver) error {
-
-	fmt.Println("Starting Server ...")
-	//make sure we are running in release mode.
+//
+// Get a interactive server for the receiver.
+// Start: In order to start the server call (*ReceiverHolder).Start()
+// Stop: In order to stop server call (*ReceiverHolder).Shutdown()
+//
+func GetServer(receiver *RavenReceiver) (*ReceiverHolder, error) {
+	//initiate gin
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-
-	//r := gin.Default()
-
-	receiverHolder := &ReceiverHolder{receiver, r}
-	//Define routes
-	receiverHolder.defineRoutes()
-
-	quit := make(chan os.Signal)
-	signal.Notify(quit, os.Interrupt)
-
-	go func() {
-		<-quit
-		//fmt.Println("got interrupt")
-		StopServer(receiver)
-		//	time.Sleep(time.Second * 10)
-		os.Exit(0)
-	}()
-	if err := receiverHolder.startListening(); err != nil {
-		StopServer(receiver)
-		return err
+	//define holder
+	receiverHolder := &ReceiverHolder{
+		receiver: receiver,
+		engine:   r,
 	}
-	return nil
+	//define routes
+	receiverHolder.defineRoutes()
+	//get listener
+	listener, err := receiverHolder.getListener()
+	if err != nil {
+		return nil, err
+	}
+	receiverHolder.listener = listener
+	return receiverHolder, nil
 }
 
-func StopServer(receiver *RavenReceiver) error {
-	fmt.Println("Stopping Server...")
-	fmt.Println("######################################")
-	receiver.Stop()
-	fmt.Println("######################################")
-	return nil
-}
-
+//
+// Base construct for our interactive server.
+//
 type ReceiverHolder struct {
 	receiver *RavenReceiver
 	engine   *gin.Engine
+	listener net.Listener
 }
 
+//
+// Used to shutdown the server.
+//
+func (this *ReceiverHolder) Shutdown() error {
+	fmt.Println("Shutting down Server...please wait.")
+	fmt.Println("######################################")
+	this.receiver.Stop()
+	fmt.Println("######################################")
+	return nil
+}
+
+//
+// Used to start the server.
+//
+func (this *ReceiverHolder) Start() error {
+
+	fmt.Println("Starting server ...")
+	//register shutdown hook
+	this.registerShutdownHook()
+
+	s := http.Server{}
+	s.Handler = this.engine
+
+	//show a informative message
+	this.receiver.ShowMessage()
+
+	//start serving.
+	return s.Serve(this.listener)
+}
+
+//register shutdown hook, defines the actions that needs to be performed
+//before shutting down server.
+func (this *ReceiverHolder) registerShutdownHook() {
+	quit := make(chan os.Signal)
+	signal.Notify(quit, os.Interrupt)
+	go func() {
+		<-quit
+		fmt.Println("got interrupt")
+		this.Shutdown()
+		os.Exit(0)
+	}()
+}
+
+//define routing logic
 func (this *ReceiverHolder) defineRoutes() {
 
 	this.engine.GET("/", this.ping)
@@ -67,24 +101,24 @@ func (this *ReceiverHolder) defineRoutes() {
 	this.engine.POST("/flushAll", this.flushAll)
 }
 
-func (this *ReceiverHolder) startListening() error {
-
+//called to fetch listener.
+func (this *ReceiverHolder) getListener() (net.Listener, error) {
 	var port string = "0"
 	if this.receiver.port != "" {
 		port = this.receiver.port
 	}
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("%s", err.Error())
 	}
-	this.receiver.port = strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
-	this.receiver.ShowMessage()
-
-	s := http.Server{}
-	s.Handler = this.engine
-	return s.Serve(listener)
+	return listener, nil
 }
 
+//
+// Routing functions sits below.
+//
+
+// stats router.
 func (this *ReceiverHolder) stats(c *gin.Context) {
 
 	flightData := this.receiver.GetInFlightRavens()
@@ -105,6 +139,7 @@ func (this *ReceiverHolder) stats(c *gin.Context) {
 	c.JSON(200, data)
 }
 
+//flushdeadQ router
 func (this *ReceiverHolder) flushDeadQ(c *gin.Context) {
 
 	responsedata := this.receiver.FlushDeadBox()
@@ -112,16 +147,19 @@ func (this *ReceiverHolder) flushDeadQ(c *gin.Context) {
 	c.JSON(200, data)
 }
 
+//flushall router
 func (this *ReceiverHolder) flushAll(c *gin.Context) {
 	responsedata := this.receiver.FlushAll()
 	data := responsedata
 	c.JSON(200, data)
 }
 
+//ping router
 func (this *ReceiverHolder) ping(c *gin.Context) {
 	c.JSON(200, "OK")
 }
 
+//showdead router
 func (this *ReceiverHolder) showDeadBox(c *gin.Context) {
 	msgs, err := this.receiver.ShowDeadBox()
 	if err != nil {

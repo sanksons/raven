@@ -203,6 +203,7 @@ func (this *MsgReceiver) preStart() error {
 
 func (this *MsgReceiver) stop() {
 	this.stopFlag = true
+
 	<-this.stopped
 	return
 }
@@ -214,11 +215,10 @@ func (this *MsgReceiver) start(f MessageHandler) {
 
 	// Wait for a while before starting. this will help incases where webserver
 	// initialization failed avoiding any message to get stuck.
-	time.Sleep(20 * time.Second)
+	//time.Sleep(20 * time.Second)
 
 	// this blocks
 	for {
-
 		if this.stopFlag {
 			this.stopped <- true
 			fmt.Println(fmt.Sprintf("Stopped MsgReceiver: %s", this.id))

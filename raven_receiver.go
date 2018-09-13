@@ -207,13 +207,20 @@ func (this *RavenReceiver) Start(f MessageHandler) error {
 		return err
 	}
 
+	//Register server, code is written in such a manner that errors related to
+	//address are already caught here.
+	server, err := GetServer(this)
+	if err != nil {
+		return err
+	}
+
 	//Take lock, this ensures only one receiver is receiving from Q.
 	if err := this.Lock(); err != nil {
 		return err
 	}
 	defer this.Unlock()
 
-	//Refresh lock
+	//Start a refresher so that lock is refreshed at appropriate intervals
 	this.RefreshLock()
 
 	// execute prestart hook of all receivers.
@@ -224,17 +231,16 @@ func (this *RavenReceiver) Start(f MessageHandler) error {
 		}
 	}
 
-	//@todo: Start receivers.
-	// Since the start functions of receivers block, we need to start
-	// receivers as seperate goroutines.
-	// @todo: need to control these receivers from channels.
+	// Start receivers.
+	//   Since the start functions of receivers block, we need to start
+	//   receivers as seperate goroutines.
 	for _, msgreceiver := range this.msgReceivers {
 		go msgreceiver.StartHeartBeat()
 		go msgreceiver.start(f)
 	}
 
 	//Once all the receivers are up boot up the server.
-	if err := StartServer(this); err != nil {
+	if err := server.Start(); err != nil {
 		return err
 	}
 	return nil

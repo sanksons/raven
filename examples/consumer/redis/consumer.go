@@ -49,6 +49,7 @@ func main() {
 	// Mark as Reliable and Ordered.
 	receiver.MarkReliable()
 	receiver.SetPort("9001")
+	//receiver.SetPort("6379")
 
 	//start receiving
 
