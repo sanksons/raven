@@ -71,6 +71,10 @@ func (this *ReceiverHolder) Start() error {
 	this.receiver.ShowMessage()
 
 	//start serving.
+	// go func() {
+	// 	s.Serve(this.listener)
+	// }()
+	// this.registerShutdownHook()
 	return s.Serve(this.listener)
 }
 
@@ -78,10 +82,11 @@ func (this *ReceiverHolder) Start() error {
 //before shutting down server.
 func (this *ReceiverHolder) registerShutdownHook() {
 	quit := make(chan os.Signal)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	//fine, wait for signal
 	go func() {
 		<-quit
-		fmt.Println("got interrupt")
+		fmt.Println("got shutdown call")
 		this.Shutdown()
 		os.Exit(0)
 	}()
