@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-errors/errors"
 	newrelic "github.com/newrelic/go-agent"
 	"github.com/sanksons/gowraps/util"
 )
@@ -308,7 +309,7 @@ func (this *MsgReceiver) processMessage(msg *Message, f MessageHandler) error {
 		// handle any panics occuring from client code.
 		defer func() {
 			if r := recover(); r != nil {
-				emsg := fmt.Sprintf("Panic Occurred !!! Handled Gracefully \n Message: %s", msg)
+				emsg := fmt.Sprintf("Panic Occurred !!! Handled Gracefully \n Message: %s, Stack: %s", msg, errors.Wrap(r, 5).ErrorStack())
 				execerr = fmt.Errorf(emsg)
 			}
 			// Check if transaction is started and needs to be wrapped up.
