@@ -104,7 +104,7 @@ func (this *MsgReceiver) recordHeartBeat(inflightCount int, deadCount int) {
 	}
 	//Record Heart Beat
 	this.parent.farm.newrelicApp.RecordCustomEvent(
-		fmt.Sprintf("Heartbeat_%s", this.id), map[string]interface{}{
+		fmt.Sprintf("Heartbeat_%s", this.msgbox.GetRawName()), map[string]interface{}{
 			"inflightcount": inflightCount,
 			"checkedAt":     time.Now(),
 			"queue":         this.msgbox.GetRawName(),
