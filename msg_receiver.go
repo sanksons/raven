@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sanksons/gowraps/regexp"
-
 	"github.com/go-errors/errors"
 	newrelic "github.com/newrelic/go-agent"
 	"github.com/sanksons/gowraps/util"
@@ -105,15 +103,12 @@ func (this *MsgReceiver) recordHeartBeat(inflightCount int, deadCount int) {
 		return
 	}
 	//Record Heart Beat
-	heartbeatName := fmt.Sprintf("Heartbeat_%s", this.msgbox.GetRawName())
-
-	//remove special chars, only alphanumeric is allowed in newrelic events.
-	heartbeatName, _ = regexp.AlphaNumericOnly(heartbeatName, "")
+	heartbeatName := "RavenHeartBeat"
 
 	this.parent.farm.newrelicApp.RecordCustomEvent(
 		heartbeatName, map[string]interface{}{
 			"inflightcount": inflightCount,
-			"checkedAt":     time.Now(),
+			"checkedAt":     int(time.Now().Unix()),
 			"queue":         this.msgbox.GetRawName(),
 			"box":           this.msgbox.GetBoxId(),
 			"deadCount":     deadCount,
