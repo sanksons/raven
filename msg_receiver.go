@@ -359,6 +359,17 @@ func (this *MsgReceiver) flushAll() error {
 // Mark Message as processed.
 //
 func (this *MsgReceiver) markProcessed(msg *Message) error {
+	this.parent.farm.newrelicApp.RecordCustomEvent(
+		"RavenMessage", map[string]interface{}{
+			"processedAt": int(time.Now().Unix()),
+			"queue":       this.msgbox.GetRawName(),
+			"box":         this.msgbox.GetBoxId(),
+			"msgId":       msg.Id,
+			"type":        msg.Type,
+			"data":        msg.Data,
+			"status":      "processed",
+		},
+	)
 	return this.parent.farm.manager.MarkProcessed(msg, *this)
 }
 
@@ -373,5 +384,17 @@ func (this *MsgReceiver) requeueMessage(msg Message) error {
 // Mark message as failed.
 //
 func (this *MsgReceiver) markFailed(msg *Message) error {
+
+	this.parent.farm.newrelicApp.RecordCustomEvent(
+		"RavenMessage", map[string]interface{}{
+			"processedAt": int(time.Now().Unix()),
+			"queue":       this.msgbox.GetRawName(),
+			"box":         this.msgbox.GetBoxId(),
+			"msgId":       msg.Id,
+			"type":        msg.Type,
+			"data":        msg.Data,
+			"status":      "dead",
+		},
+	)
 	return this.parent.farm.manager.MarkFailed(msg, *this)
 }
